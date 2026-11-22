@@ -26,11 +26,8 @@
       <canvas id="cv" width="960" height="640"></canvas>
       <button id="btnAuto" class="autoBtn" type="button">🤖 AUTO OFF</button>
       <div id="feverChip" hidden></div>
-      <div id="evbar" hidden>
-        <div class="evtx"><b id="evText"></b><span id="evTime"></span></div>
-        <div class="evbars"><i id="evTimeFill"></i></div>
-        <div class="evbars hp" id="evHpWrap"><i id="evHpFill"></i></div>
-      </div>
+      <div id="clock"><span id="clockIcon">☀️</span> <b id="clockTime">09:00</b> <small id="clockPhase">주간 근무</small><i id="clockBar"></i></div>
+      <div id="alerts"></div>
       <div id="toasts"></div>
     </main>
 
@@ -52,6 +49,16 @@
       </div>
     </div>
 
+    <div id="settle" hidden>
+      <div class="endbox">
+        <div class="endtag" id="settleTag">퇴근 정산</div>
+        <h2 id="settleTitle">1일차 근무 종료</h2>
+        <div id="settleBody" class="grid"></div>
+        <p id="settleMsg" class="help"></p>
+        <button id="settleBtn" class="btn big">☀️ 09:00 다음 근무 시작</button>
+      </div>
+    </div>
+
     <div id="ending" hidden>
       <div class="endbox">
         <div class="endtag">HIDDEN ENDING</div>
@@ -64,6 +71,7 @@
   </div>
 
   <script src="js/config.js"></script>
+  <script src="js/maps.js"></script>
   <script src="js/gfx.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/save.js"></script>

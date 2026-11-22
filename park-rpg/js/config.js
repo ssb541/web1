@@ -34,6 +34,12 @@
       officeWall: [5, 0], officeRoof: [6, 0], officeDoor: [7, 0], officeWindow: [8, 0],
       tree: [0, 1], flower: [1, 1], aptWall: [2, 1], aptRoof: [3, 1], aptWindow: [4, 1], aptDoor: [5, 1],
       carRed: [0, 2], carBlue: [1, 2], carGray: [2, 2],
+      // 실내 맵(관리사무소/세대) 타일
+      floorOffice: [0, 3], floorWood: [1, 3], floorTileW: [2, 3], floorBalcony: [3, 3], wallTop: [4, 3], wallFace: [5, 3],
+      doorIn: [6, 3], void: [7, 3], counter: [8, 3],
+      pcDesk: [0, 4], phoneDesk: [1, 4], keybox: [2, 4], chair: [3, 4], sofa: [4, 4], tv: [5, 4], tableL: [6, 4], tableS: [7, 4], plant: [8, 4],
+      stove: [0, 5], sink: [1, 5], fridge: [2, 5], gasDet: [3, 5], gasValve: [4, 5], detector: [5, 5], toilet: [6, 5], tub: [7, 5], leak: [8, 5],
+      waterValve: [0, 6], washer: [1, 6], deskW: [2, 6], noticeBoard: [3, 6],
     },
 
     // player 시트: row = 직급 인덱스(0~3), col = 방향*2 + 걷기프레임
@@ -119,8 +125,7 @@
   PJ.EVENT = { interval: 45, first: 30, mult: 2.5 };           // 이벤트 주기(초), 첫 발생, 보상 배율
   PJ.FEVER = { dur: 10, speed: 1.35, rate: 1.8 };              // 피버: 지속시간, 이속 배율, 쿨/공속 배율
   PJ.EVENTS = [
-    { id: 'fire', text: '🚨 103동 화재 오경보!', sprite: 'fire', hp: 6, ttl: 30, exp: 30, gold: 25, tile: [23, 5], win: '오경보 해제 완료!' },
-    { id: 'elevator', text: '🛗 엘리베이터 멈춤!', sprite: 'elevator', hp: 6, ttl: 30, exp: 30, gold: 25, tile: [13, 5], win: '엘리베이터 정상 운행!' },
+    { id: 'elevator', text: '🛗 엘리베이터 멈춤!', sprite: 'elevator', hp: 6, ttl: 30, exp: 30, gold: 25, tile: [14, 5], win: '엘리베이터 정상 운행!' },
     { id: 'villain', text: '🚗 이중주차 빌런 출현!', name: '이중주차 빌런', sprite: 'villain', boss: true, hp: 16, ttl: 45, exp: 80, gold: 60, zone: 'parking', win: '빌런 퇴치 완료!' },
   ];
 
@@ -144,72 +149,55 @@
       snow: ['올겨울 눈 적당히 왔으면...', '제설함 열쇠 어디 뒀더라...'],
       complaint: ['방금 전화로 말씀하셨잖아요...', '친절, 친절, 친절...'],
       boss: ['저 차 주인, 오늘도 전화 안 받겠지...', '이 맛에 관리실 한다... 아니다.'],
+      night: ['6시 이후엔 제발 전화 안 왔으면...', '야간수당이 아니면 진작 집에 갔다...', '아침 9시는 대체 언제 오는 거야...', '라면 끓일 시간은 있으려나...'],
+      visit: ['제발 오경보이길...', '엘리베이터 없이 8층은 좀...'],
     },
     bossSay: ['주차선은 지켜 주세요!'],
+    nightSay: ['네, 관리사무소입니다. 도와드리겠습니다!', '확인해 보겠습니다, 잠시만요~'],
+    visitSay: ['지금 바로 올라가겠습니다!', '점검 나왔습니다, 잠시만 실례하겠습니다!'],
     event: ['긴급 상황입니다, 침착하게 대응하겠습니다!'],
   };
 
-  /* ------------------------------- 맵 ------------------------------------- */
-  (function buildMap() {
-    const W = 30, H = 20;
-    const ground = Array.from({ length: H }, (_, y) =>
-      Array.from({ length: W }, (_, x) => ((x * 7 + y * 13) % 5 === 0 ? 'grass2' : 'grass')));
-    const deco = Array.from({ length: H }, () => Array(W).fill(null));
-    const rect = (x0, y0, x1, y1, fn) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) fn(x, y); };
+  /* ------------------ 근무 시계 / 세대 방문 민원 / 야간 당직 ----------------- */
+  // 09:00 출근 → 18:00 야간 당직 → 다음날 09:00 퇴근 정산 (게임 시간 1초당 minPerSec 분)
+  PJ.TIME = { minPerSec: 2.6, start: 540, dusk: 1080, end: 1980 };
 
-    // 보행로
-    rect(1, 5, 28, 6, (x, y) => (ground[y][x] = 'path'));
-    rect(9, 7, 10, 18, (x, y) => (ground[y][x] = 'path'));
-    rect(17, 7, 18, 16, (x, y) => (ground[y][x] = 'path'));
-    rect(1, 17, 28, 18, (x, y) => (ground[y][x] = 'path'));
-    // 주차장
-    rect(19, 7, 28, 16, (x, y) => (ground[y][x] = x % 2 === 0 ? 'parkLine' : 'parking'));
+  // 주간 '세대 방문 민원': 동 입구 → 세대 내부 맵에서 미션 처리
+  PJ.VISIT = {
+    first: 22, interval: 38, ttl: 100, mult: 2.0, max: 2, exp: 28, gold: 24,
+    buildings: ['101', '102', '103'],
+    types: {
+      fire: { title: '화재 오경보', text: (b, u) => `${b}동 ${u}호 화재 오경보!`, steps: [
+        { id: 'detector', label: '천장 화재감지기 교체', verb: '감지기 교체 중…', done: '감지기 교체 완료 — 오경보 해제!', hp: 6 }] },
+      gas: { title: '가스 경보', text: (b, u) => `${b}동 ${u}호 가스경보!`, steps: [
+        { id: 'gasDet', label: '가스감지기 전원잭 분리', verb: '전원잭 분리 중…', done: '전원잭 분리 — 경보음 정지!', hp: 5 }] },
+      leak: { title: '누수 점검', text: (b, u) => `${b}동 ${u}호 누수 점검!`, steps: [
+        { id: 'leak', label: '누수 위치 확인', verb: '배관 점검 중…', done: '배관 이음새 누수 발견! 밸브를 잠그세요', hp: 4 },
+        { id: 'waterValve', label: '베란다 밸브 잠금', verb: '밸브 잠그는 중…', done: '밸브 잠금 — 누수 차단!', hp: 4 }] },
+    },
+  };
 
-    // 관리사무소 (x2~7, y1~4)
-    rect(2, 1, 7, 2, (x, y) => (ground[y][x] = 'officeRoof'));
-    rect(2, 3, 7, 3, (x, y) => (ground[y][x] = x % 2 === 1 ? 'officeWindow' : 'officeWall'));
-    rect(2, 4, 7, 4, (x, y) => (ground[y][x] = 'officeWall'));
-    ground[4][4] = 'officeDoor'; ground[4][5] = 'officeDoor';
-    // 아파트 두 동
-    const apt = (x0, x1, d0) => {
-      rect(x0, 1, x1, 1, (x, y) => (ground[y][x] = 'aptRoof'));
-      rect(x0, 2, x1, 3, (x, y) => (ground[y][x] = (x + y) % 2 === 0 ? 'aptWindow' : 'aptWall'));
-      rect(x0, 4, x1, 4, (x, y) => (ground[y][x] = 'aptWall'));
-      ground[4][d0] = 'aptDoor'; ground[4][d0 + 1] = 'aptDoor';
-    };
-    apt(11, 16, 13);
-    apt(20, 27, 23);
+  // 야간 당직: 내방 민원(데스크) ↔ 전화 민원 번갈아 발생
+  PJ.NIGHT = {
+    first: 6, gapMin: 4, gapMax: 8, ttl: { walkin: 30, call: 24 }, mult: 1.8, exp: 22, gold: 20,
+    walkin: [
+      { id: 'pass', title: '방문차량증 발급', text: '방문차량증 발급해 주세요~', station: 'desk', verb: '방문차량증 발급 중…' },
+      { id: 'regcar', title: '신규 차량 등록', text: '신규 차량 등록하러 왔어요', station: 'pc', verb: '차량 정보 입력 중…' },
+      { id: 'misc', title: '기타 문의 (열쇠 대여)', text: '공용 열쇠 좀 빌릴 수 있을까요?', station: 'keybox', verb: '열쇠 찾는 중…' },
+    ],
+    call: [
+      { id: 'noise', title: '층간소음 중재', text: '윗집이 너무 시끄러워요!!', station: 'phone', verb: '민원인 달래는 중…' },
+      { id: 'smoke', title: '세대 내 흡연 민원', text: '아랫집 담배 냄새가 올라와요', station: 'phone', verb: '세대에 안내방송 중…' },
+      { id: 'parking', title: '주차 시비', text: '제 자리에 누가 주차했어요!', station: 'phone', verb: '차주에게 연락 중…' },
+    ],
+  };
 
-    // 외곽 나무
-    for (let x = 0; x < W; x++) { deco[0][x] = 'tree'; deco[H - 1][x] = 'tree'; }
-    for (let y = 0; y < H; y++) { deco[y][0] = 'tree'; deco[y][W - 1] = 'tree'; }
-    // 조경
-    [[2, 8], [7, 8], [3, 14], [7, 15], [12, 8], [15, 15], [1, 11], [16, 9]].forEach(([x, y]) => (deco[y][x] = 'tree'));
-    [[4, 11], [5, 11], [4, 12], [5, 12], [13, 11], [14, 11], [13, 12], [14, 12]].forEach(([x, y]) => (deco[y][x] = 'flower'));
-    // 주차된 차
-    [[20, 9, 'carRed'], [22, 9, 'carBlue'], [24, 9, 'carGray'], [27, 9, 'carRed'],
-     [21, 14, 'carGray'], [25, 14, 'carBlue'], [27, 14, 'carRed']].forEach(([x, y, n]) => (deco[y][x] = n));
-
-    const SOLID = new Set(['officeRoof', 'officeWall', 'officeWindow', 'officeDoor', 'aptRoof', 'aptWall', 'aptWindow', 'aptDoor',
-      'tree', 'flower', 'carRed', 'carBlue', 'carGray']);
-
-    PJ.MAP = {
-      w: W, h: H, ground, deco,
-      solid(tx, ty) {
-        if (tx < 0 || ty < 0 || tx >= W || ty >= H) return true;
-        return SOLID.has(ground[ty][tx]) || (deco[ty][tx] !== null && SOLID.has(deco[ty][tx]));
-      },
-      spawn: { x: 5, y: 5 }, // 시작 위치(타일)
-      // 맵 위에 표시할 구역 이름 (타일 좌표 기준 중심)
-      labels: [
-        { text: '관리사무소', x: 4.5, y: 1.9, color: '#fff' },
-        { text: '주차장', x: 23.5, y: 7.6, color: '#fff' },
-        { text: '중앙 화단', x: 13.5, y: 10.2, color: '#fff' },
-        { text: '서측 잔디밭', x: 4.5, y: 9.6, color: '#fff' },
-        { text: '102동', x: 14, y: 1.9, color: '#fff' },
-        { text: '103동', x: 24, y: 1.9, color: '#fff' },
-        { text: '보행로', x: 19.5, y: 5.5, color: '#fff' },
-      ],
-    };
-  })();
+  // 관리실 동료 / 입주민 NPC 팔레트 (플레이스홀더 도트용)
+  PJ.NPCS = [
+    { name: '김대리', palette: { c: '#8a6ac8', a: '#ffffff', w: '#f2f2f2', p: '#3a3550', hair: '#2a1d14', hat: null, glasses: false } },
+    { name: '이과장', palette: { c: '#c8793a', a: '#ffd24a', w: '#f2f2f2', p: '#4a3a32', hair: '#555555', hat: null, glasses: true } },
+    { name: '입주민A', palette: { c: '#d86a8a', a: '#ffffff', w: '#f2f2f2', p: '#40405a', hair: '#7a4a2a', hat: null, glasses: false } },
+    { name: '입주민B', palette: { c: '#4aa8a0', a: '#ffffff', w: '#f2f2f2', p: '#304048', hair: '#222222', hat: null, glasses: true } },
+    { name: '입주민C', palette: { c: '#d8c24a', a: '#ffffff', w: '#f2f2f2', p: '#503a30', hair: '#aa6a3a', hat: '#d8c24a', glasses: false } },
+  ];
 })();

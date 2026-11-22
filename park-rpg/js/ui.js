@@ -8,7 +8,7 @@
   let el = {}, tab = 'skills', open = false, btns = {}, hudKey = '';
 
   function init() {
-    ['gold', 'lv', 'expFill', 'expText', 'whoTitle', 'avatar', 'toasts', 'btnAuto', 'feverChip', 'evbar', 'evText', 'evTime', 'evTimeFill', 'evHpFill', 'evHpWrap', 'ending', 'endText', 'endBtn', 'endAvatar', 'panel', 'panelBody', 'btnMenu', 'btnClose', 'skills', 'stick', 'knob']
+    ['gold', 'lv', 'expFill', 'expText', 'whoTitle', 'avatar', 'toasts', 'btnAuto', 'feverChip', 'alerts', 'clock', 'clockIcon', 'clockTime', 'clockPhase', 'clockBar', 'settle', 'settleTitle', 'settleBody', 'settleMsg', 'settleBtn', 'ending', 'endText', 'endBtn', 'endAvatar', 'panel', 'panelBody', 'btnMenu', 'btnClose', 'skills', 'stick', 'knob']
       .forEach((id) => { el[id] = document.getElementById(id); });
     Input.bindStick(el.stick, el.knob);
 
@@ -24,7 +24,7 @@
       b.innerHTML = `<span class="key">${d.key === 'Space' ? 'SP' : d.key}</span><span class="ic">${d.icon || sk.icon}</span><span class="nm">${d.name || sk.name.replace(/ .*/, '')}</span><span class="cdo"></span><span class="cdt"></span>`;
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault(); Audio.unlock();
-        if (d.main) { Input.held.action = true; PJ.Game.basicAction(); } else PJ.Game.useSkill(d.id);
+        if (d.main) { Input.bump(); Input.held.action = true; PJ.Game.basicAction(); } else PJ.Game.useSkill(d.id);
       });
       if (d.main) ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, () => { Input.held.action = false; }));
       el.skills.appendChild(b);
@@ -71,15 +71,31 @@
   // 매 프레임: 쿨타임 표시
   function tick() {
     const st = PJ.state;
-    const ev = st.event;
-    if (ev) {
-      const o = ev.obj;
-      el.evbar.hidden = false;
-      el.evText.textContent = ev.def.text;
-      el.evTime.textContent = Math.ceil(Math.max(0, o.ttl)) + '초 · ×' + PJ.EVENT.mult + ' 보상 + 피버';
-      el.evTimeFill.style.width = Math.max(0, o.ttl / o.maxTtl) * 100 + '%';
-      el.evHpFill.style.width = Math.max(0, o.hp / o.maxHp) * 100 + '%';
-    } else if (!el.evbar.hidden) el.evbar.hidden = true;
+    // 근무 시계
+    const night = st.phase === 'night';
+    el.clock.classList.toggle('night', night);
+    el.clockIcon.textContent = night ? '🌙' : '☀️';
+    el.clockTime.textContent = PJ.Clock.text();
+    el.clockPhase.textContent = night ? '야간 당직' : '주간 근무';
+    el.clockBar.style.width = Math.min(100, ((st.min - PJ.TIME.start) / (PJ.TIME.end - PJ.TIME.start)) * 100) + '%';
+    // 알림 바
+    const al = PJ.Game.alerts();
+    while (el.alerts.children.length < al.length) {
+      const d = document.createElement('div');
+      d.innerHTML = '<div class="evtx"><b></b><span></span></div><small></small><div class="evbars"><i class="t"></i></div><div class="evbars hp"><i class="h"></i></div>';
+      el.alerts.appendChild(d);
+    }
+    while (el.alerts.children.length > al.length) el.alerts.lastChild.remove();
+    al.forEach((a, i) => {
+      const d = el.alerts.children[i];
+      d.className = 'al ' + a.tone;
+      d.querySelector('b').textContent = a.text;
+      d.querySelector('span').textContent = Math.ceil(Math.max(0, a.ttl)) + '초';
+      d.querySelector('small').textContent = a.sub || '';
+      d.querySelector('.t').style.width = Math.max(0, a.ttl / a.max) * 100 + '%';
+      const hp = d.querySelector('.evbars.hp'); hp.style.display = a.hp != null ? '' : 'none';
+      if (a.hp != null) d.querySelector('.h').style.width = Math.max(0, a.hp / a.maxHp) * 100 + '%';
+    });
     if (st.fever > 0) { el.feverChip.hidden = false; el.feverChip.textContent = '🔥 FEVER ' + st.fever.toFixed(1) + 's'; }
     else if (!el.feverChip.hidden) el.feverChip.hidden = true;
     Object.keys(btns).forEach((id) => {
@@ -139,6 +155,19 @@
     return h;
   }
 
+  function showSettle(sm, done) {
+    el.settleTitle.textContent = `${sm.day}일차 근무 종료 (09:00 퇴근)`;
+    const row = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
+    el.settleBody.innerHTML = [
+      row('🌿 잡초 처리', sm.weed), row('❄️ 눈 처리', sm.snow), row('💬 단지 민원', sm.complaint), row('🏠 세대 방문', sm.visit),
+      row('🌙 야간 민원 처리', sm.night), row('📵 야간 놓친 민원', sm.nightFail), row('💰 획득 골드', fmt(sm.gold)), row('✨ 획득 EXP', fmt(sm.exp)),
+      row('🌙 야간수당 합계', fmt(sm.nightPay)), row('🧾 정산 보너스', '+' + fmt(sm.bonus)),
+    ].join('');
+    el.settleMsg.textContent = sm.night + sm.visit === 0 ? '"오늘은 조용했네요... 오히려 불안합니다."' : sm.nightFail > sm.night ? '"전화를 못 받은 게 이렇게 많다니... 내일은 더 잘해야지."' : '"고생하셨습니다, 박주임님. 이제 집에서 칼바람 한 판..."';
+    el.settleBtn.onclick = () => { el.settle.hidden = true; done(); };
+    el.settle.hidden = false; Audio.play('level');
+  }
+
   function showEnding() {
     PJ.Game.setPaused(true);
     drawAvatar(el.endAvatar, RANKS.length - 1);
@@ -182,7 +211,10 @@
       <b>클릭/터치 이동</b> · 맵의 잡초·눈·민원·돌발 상황을 클릭(터치)하면 자동으로 걸어가 작업합니다. 빈 땅을 누르면 그곳까지 이동합니다.<br>
       <b>모바일</b> · 왼쪽 가상 조이스틱 이동 · 오른쪽 <b>✋ 작업</b> 버튼(꾹 누르기 가능) / 스킬 버튼<br>
       <b>AUTO</b> · 켜면 가까운 업무를 스스로 찾아 처리하고, 쿨타임이 찬 스킬도 자동 사용합니다. 직접 조작하면 즉시 중단됩니다.<br>
-      <b>돌발 당직</b> · 45초마다 긴급 상황/이중주차 빌런 출현! 제한시간 안에 처리하면 보상 ×2.5 + 10초 피버.<br>
+      <b>근무 사이클</b> · 09:00 출근 → 18:00 야간 당직(관리사무소 혼자 근무) → 다음날 09:00 퇴근 정산.<br>
+      <b>건물 출입</b> · 관리사무소 문/아파트 동 입구에서 <kbd>Space</kbd>(또는 ✋/탭)로 들어가고, 안쪽 문에서 다시 나옵니다.<br>
+      <b>주간</b> · 제초·제설 + 돌발 이벤트(엘리베이터 멈춤, 이중주차 빌런) + <b>세대 방문 민원</b>(화재 오경보→감지기 교체 / 가스경보→전원잭 분리 / 누수→위치 확인 후 밸브 잠금).<br>
+      <b>야간</b> · 데스크 내방 민원(차량증 발급·차량 등록·열쇠 문의)과 전화 민원(층간소음·흡연·주차 시비)이 번갈아 발생. 제한시간 내 처리하면 야간수당 ×1.8!<br>
       가까이 가면 흰 점선 링이 뜨는 대상에게 기본 작업이 자동으로 들어갑니다. 연속 처리하면 <b>콤보</b> 보너스 EXP!</div>
       <div class="row"><button class="btn" data-sound>${Audio.isMuted() ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'}</button><button class="btn danger" data-reset>저장 데이터 초기화</button></div>
       <p class="help" style="margin-top:10px">진행 상황은 이 브라우저에 자동 저장됩니다. (마지막 저장: ${s.savedAt ? new Date(s.savedAt).toLocaleTimeString('ko-KR') : '-'})</p>`;
@@ -196,5 +228,5 @@
     else if ('reset' in t.dataset) { if (confirm('정말 모든 진행도를 지우고 처음부터 시작할까요?')) PJ.Game.reset(); }
   }
 
-  PJ.UI = { init, refresh, tick, toast, showEnding, togglePanel, openPanel, closePanel, isOpen: () => open };
+  PJ.UI = { init, refresh, tick, toast, showEnding, showSettle, togglePanel, openPanel, closePanel, isOpen: () => open };
 })();

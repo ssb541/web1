@@ -29,7 +29,7 @@ body { -webkit-user-select: none; user-select: none; touch-action: none; }
 /* 스테이지 */
 #stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #11151f; }
 #cv { image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated; display: block; touch-action: none; box-shadow: 0 0 0 3px var(--line); }
-#toasts { position: absolute; top: 8px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+#toasts { position: absolute; top: 34px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .toast { background: rgba(14,18,32,.92); border: 2px solid #3a4470; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 700; animation: toast 2.6s forwards; max-width: 92%; text-align: center; }
 .toast.good { border-color: var(--gold); color: var(--gold); }
 @keyframes toast { 0% { opacity: 0; transform: translateY(-8px); } 10%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; } }
@@ -114,9 +114,6 @@ h3 { margin: 4px 0 8px; font-size: 14px; color: var(--gold); }
 @keyframes pulse { 50% { box-shadow: 0 0 2px rgba(106,223,90,.2); } }
 #feverChip { position: absolute; right: 6px; top: 6px; z-index: 2; background: linear-gradient(#ff9b3b, #e2561a); border: 2px solid #ffd24a; border-radius: 16px; padding: 4px 10px; font-size: 12px; font-weight: 900; animation: pulse2 .5s infinite alternate; }
 @keyframes pulse2 { to { transform: scale(1.08); } }
-#evbar { position: absolute; left: 50%; transform: translateX(-50%); top: 38px; z-index: 2; width: min(92%, 420px); background: rgba(70,10,10,.92); border: 2px solid #ff5a5a; border-radius: 10px; padding: 6px 10px; animation: evblink .6s infinite alternate; }
-@keyframes evblink { to { border-color: #ffd24a; } }
-#evbar[hidden], #feverChip[hidden], #ending[hidden] { display: none; }
 .evtx { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
 .evtx span { color: #ffd24a; font-weight: 900; }
 .evbars { height: 6px; background: #1a0a0a; border-radius: 3px; overflow: hidden; margin-top: 3px; }
@@ -144,3 +141,29 @@ h3 { margin: 4px 0 8px; font-size: 14px; color: var(--gold); }
 
 /* 터치/세로 폰: 겹침 방지 여백 */
 @media (max-width: 480px) { .autoBtn { font-size: 11px; padding: 4px 8px; } #evbar { top: 34px; padding: 4px 8px; } .evtx { font-size: 12px; } }
+
+/* 근무 시계 */
+#clock { position: absolute; left: 50%; transform: translateX(-50%); top: 6px; z-index: 3; background: rgba(14,18,32,.88); border: 2px solid #3a4470; border-radius: 16px; padding: 3px 12px 6px; font-size: 13px; white-space: nowrap; overflow: hidden; }
+#clock b { font-size: 15px; letter-spacing: 1px; color: var(--gold); } #clock small { color: var(--dim); font-size: 11px; margin-left: 2px; }
+#clock i { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--gold); }
+#clock.night { border-color: #6a7ad8; background: rgba(20,24,60,.92); } #clock.night b { color: #b9c6ff; } #clock.night i { background: #7f8fe8; }
+/* 알림 바(이벤트/방문/야간 민원) */
+#alerts { position: absolute; left: 50%; transform: translateX(-50%); top: 40px; z-index: 2; width: min(94%, 440px); display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
+.al { background: rgba(70,10,10,.92); border: 2px solid #ff5a5a; border-radius: 10px; padding: 4px 10px; }
+.al.visit { background: rgba(60,40,8,.93); border-color: #ffb03b; } .al.night { background: rgba(18,22,66,.93); border-color: #7f8fe8; }
+.al .evtx { margin-bottom: 3px; } .al .evtx b { font-size: 12px; } .al .evtx span { font-size: 11px; color: #ffd24a; font-weight: 800; }
+.al small { display: block; font-size: 10px; color: #ffcfcf; margin-bottom: 2px; } .al.visit small { color: #ffe3b0; } .al.night small { color: #c5ceff; }
+.al .evbars { height: 5px; margin-top: 2px; } .al.night .evbars i { background: #7f8fe8; } .al.visit .evbars i { background: #ffb03b; }
+#settle { position: fixed; inset: 0; z-index: 21; background: rgba(8,6,18,.96); display: flex; align-items: center; justify-content: center; padding: 14px; overflow-y: auto; touch-action: pan-y; }
+#settleBody { margin: 12px 0; text-align: left; } #settleMsg { text-align: left; }
+@media (max-width: 480px) { #clock { font-size: 12px; padding: 2px 10px 5px; } #clock b { font-size: 14px; } #alerts { top: 36px; } .al { padding: 3px 8px; } #toasts { top: 36px; } }
+#feverChip[hidden], #ending[hidden], #settle[hidden], #panel[hidden] { display: none !important; }
+/* 좁은 화면: 알림 바를 한 줄로 압축해 맵을 가리지 않게 */
+@media (max-width: 520px) {
+  #alerts { gap: 2px; top: 36px; }
+  .al { padding: 2px 8px; border-width: 1.5px; border-radius: 8px; }
+  .al small, .al .evbars.hp { display: none !important; }
+  .al .evtx { margin-bottom: 1px; } .al .evtx b { font-size: 11px; } .al .evtx span { font-size: 10px; }
+  .al .evbars { height: 3px; margin-top: 1px; }
+  #toasts { top: auto; bottom: 6px; }
+}

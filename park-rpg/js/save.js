@@ -8,7 +8,7 @@
     return {
       v: 1, level: 1, exp: 0, gold: 0, rank: 0,
       skills: { weedPull: 1, mower: 1, shovel: 1, blower: 1, kind: 1 },
-      stats: { weed: 0, snow: 0, complaint: 0, event: 0, boss: 0 },
+      stats: { weed: 0, snow: 0, complaint: 0, event: 0, boss: 0, visit: 0, night: 0 },
       items: { hotpack: 0, quietMower: 0, earmuff: 0, coffee: 0, catSnack: 0 },
       auto: false, ending: false,
       muted: false, savedAt: 0,

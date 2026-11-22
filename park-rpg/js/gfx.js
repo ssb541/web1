@@ -103,6 +103,47 @@
       case 'carRed': asphalt(g, r); car(g, '#d94a4a', '#e66'); break;
       case 'carBlue': asphalt(g, r); car(g, '#4a7fd9', '#6a9ae6'); break;
       case 'carGray': asphalt(g, r); car(g, '#9aa0aa', '#b4bac4'); break;
+
+      case 'void': px(g, 0, 0, 16, 16, '#0b0e18'); break;
+      case 'wallTop': px(g, 0, 0, 16, 16, '#3a3f58'); px(g, 0, 0, 16, 2, '#51587a'); px(g, 0, 14, 16, 2, '#2a2e42'); break;
+      case 'wallFace': px(g, 0, 0, 16, 16, '#e6dcc8'); px(g, 0, 0, 16, 1, '#f4ecdc'); px(g, 0, 12, 16, 4, '#9a8a6a'); px(g, 0, 12, 16, 1, '#b5a582'); break;
+      case 'doorIn':
+        px(g, 0, 0, 16, 16, '#3a3f58'); px(g, 1, 3, 14, 13, '#6b4a2b'); px(g, 2, 4, 12, 12, '#8a5a30'); px(g, 3, 5, 4, 4, '#a9733f'); px(g, 9, 5, 4, 4, '#a9733f');
+        px(g, 3, 10, 4, 5, '#a9733f'); px(g, 9, 10, 4, 5, '#a9733f'); px(g, 11, 9, 2, 2, '#ffd24a');
+        px(g, 3, 0, 10, 3, '#1f7a44'); px(g, 4, 1, 8, 1, '#7dffb0'); break;
+      case 'floorOffice': px(g, 0, 0, 16, 16, '#cdd1dc'); px(g, 0, 0, 8, 8, '#d6dae4'); px(g, 8, 8, 8, 8, '#d6dae4'); px(g, 0, 0, 16, 1, '#b8bdca'); px(g, 0, 0, 1, 16, '#b8bdca'); break;
+      case 'floorWood':
+        px(g, 0, 0, 16, 16, '#b98a5a');
+        [3, 7, 11, 15].forEach((y) => px(g, 0, y, 16, 1, '#9c7348'));
+        px(g, 5, 0, 1, 3, '#9c7348'); px(g, 11, 4, 1, 3, '#9c7348'); px(g, 3, 8, 1, 3, '#9c7348'); px(g, 12, 12, 1, 3, '#9c7348'); break;
+      case 'floorTileW': px(g, 0, 0, 16, 16, '#e8f0f4'); px(g, 0, 0, 16, 1, '#c5d3da'); px(g, 0, 0, 1, 16, '#c5d3da'); px(g, 8, 0, 1, 16, '#d6e2e8'); px(g, 0, 8, 16, 1, '#d6e2e8'); break;
+      case 'floorBalcony': px(g, 0, 0, 16, 16, '#9aa3ad'); px(g, 0, 0, 16, 1, '#818a95'); px(g, 0, 8, 16, 1, '#8b949f'); px(g, 8, 0, 1, 16, '#8b949f'); for (let i = 0; i < 6; i++) px(g, (r() * 16) | 0, (r() * 16) | 0, 1, 1, '#b2bac3'); break;
+      case 'counter': px(g, 0, 2, 16, 6, '#b98550'); px(g, 0, 2, 16, 1, '#d6a874'); px(g, 0, 8, 16, 7, '#7a5232'); px(g, 0, 8, 16, 1, '#5a3a22'); px(g, 0, 15, 16, 1, 'rgba(0,0,0,.3)'); px(g, 2, 3, 3, 2, '#fff'); break;
+      case 'pcDesk': px(g, 0, 6, 16, 9, '#a8794a'); px(g, 0, 6, 16, 1, '#c99a6a'); px(g, 3, 0, 10, 7, '#222'); px(g, 4, 1, 8, 5, '#5ac8ff'); px(g, 5, 2, 3, 1, '#fff'); px(g, 7, 7, 2, 1, '#333'); px(g, 4, 9, 8, 2, '#ddd'); px(g, 12, 10, 2, 2, '#eee'); break;
+      case 'phoneDesk': px(g, 0, 6, 16, 9, '#a8794a'); px(g, 0, 6, 16, 1, '#c99a6a'); px(g, 4, 8, 8, 5, '#e9e4d4'); px(g, 3, 7, 10, 2, '#333'); px(g, 6, 10, 1, 1, '#777'); px(g, 8, 10, 1, 1, '#777'); px(g, 10, 10, 1, 1, '#777'); px(g, 12, 8, 2, 2, '#e23b3b'); break;
+      case 'keybox': px(g, 1, 1, 14, 14, '#1b3a28'); px(g, 2, 2, 12, 12, '#2d5a3d'); for (let rr = 0; rr < 3; rr++) for (let c = 0; c < 4; c++) { px(g, 3 + c * 3, 3 + rr * 4, 2, 1, '#bbb'); px(g, 3 + c * 3, 4 + rr * 4, 2, 2, '#ffd24a'); } break;
+      case 'chair': px(g, 3, 3, 10, 3, '#36436a'); px(g, 3, 5, 10, 8, '#4a5a8a'); px(g, 4, 6, 8, 5, '#5a6a9a'); px(g, 4, 13, 2, 2, '#222'); px(g, 10, 13, 2, 2, '#222'); break;
+      case 'sofa': px(g, 0, 1, 16, 5, '#6f2a2a'); px(g, 0, 5, 16, 9, '#8f3b3b'); px(g, 8, 6, 1, 7, '#6f2a2a'); px(g, 0, 13, 16, 1, '#5a2020'); break;
+      case 'tv': px(g, 2, 10, 12, 5, '#5a4030'); px(g, 1, 2, 14, 9, '#111'); px(g, 2, 3, 12, 7, '#3a7aa8'); px(g, 3, 4, 3, 1, '#9fd6ee'); px(g, 8, 6, 4, 2, '#5aa8d8'); break;
+      case 'tableL': px(g, 2, 3, 12, 10, '#a8794a'); px(g, 3, 4, 10, 8, '#b98550'); px(g, 2, 13, 12, 1, 'rgba(0,0,0,.25)'); px(g, 6, 6, 4, 3, '#fff'); break;
+      case 'tableS': px(g, 3, 4, 10, 9, '#a8794a'); px(g, 4, 5, 8, 7, '#b98550'); px(g, 7, 6, 3, 3, '#fff'); px(g, 8, 7, 1, 1, '#6a3a1a'); break;
+      case 'plant':
+        px(g, 5, 10, 6, 5, '#b5543a'); px(g, 5, 10, 6, 1, '#d6745a');
+        [['#2f7a34', 8, 6, 5, 4], ['#3f9a42', 6, 5, 3, 3], ['#52b04e', 10, 5, 3, 3]].forEach(([c, x, y, rx, ry]) => { g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); });
+        break;
+      case 'stove': px(g, 0, 3, 16, 12, '#6b7078'); px(g, 1, 4, 14, 8, '#2a2d33'); [[5, 8], [11, 8]].forEach(([x, y]) => { g.fillStyle = '#555'; g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill(); g.fillStyle = '#222'; g.beginPath(); g.arc(x, y, 1.5, 0, 7); g.fill(); }); px(g, 3, 13, 2, 1, '#ddd'); px(g, 11, 13, 2, 1, '#ddd'); break;
+      case 'sink': px(g, 0, 3, 16, 12, '#c9ced6'); px(g, 2, 5, 12, 7, '#8fa3b3'); px(g, 3, 6, 10, 5, '#a9bdcb'); px(g, 7, 2, 2, 4, '#ddd'); break;
+      case 'fridge': px(g, 2, 0, 12, 15, '#e9edf2'); px(g, 2, 6, 12, 1, '#b9c0ca'); px(g, 11, 2, 1, 3, '#888'); px(g, 11, 8, 1, 4, '#888'); px(g, 2, 14, 12, 1, '#b9c0ca'); break;
+      case 'gasDet': px(g, 3, 3, 10, 8, '#f2f2f2'); px(g, 3, 3, 10, 1, '#bbb'); px(g, 4, 5, 5, 4, '#cfd6dd'); px(g, 10, 5, 2, 2, '#3fbf5f'); px(g, 7, 11, 2, 4, '#222'); break;
+      case 'gasValve': px(g, 0, 7, 16, 3, '#d6b02a'); px(g, 0, 7, 16, 1, '#f0d060'); px(g, 5, 3, 6, 3, '#c62828'); px(g, 7, 5, 2, 3, '#888'); break;
+      case 'detector': g.fillStyle = '#bbb'; g.beginPath(); g.arc(8, 8, 6, 0, 7); g.fill(); g.fillStyle = '#f4f4f4'; g.beginPath(); g.arc(8, 8, 5, 0, 7); g.fill(); px(g, 5, 7, 6, 1, '#cfcfcf'); px(g, 5, 9, 6, 1, '#cfcfcf'); px(g, 11, 4, 2, 2, '#e23b3b'); break;
+      case 'toilet': px(g, 4, 1, 8, 4, '#f4f4f4'); px(g, 4, 1, 8, 1, '#bbb'); g.fillStyle = '#bbb'; g.beginPath(); g.ellipse(8, 10, 6, 5, 0, 0, 7); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.ellipse(8, 10, 5, 4, 0, 0, 7); g.fill(); break;
+      case 'tub': px(g, 0, 0, 16, 16, '#f4f4f4'); px(g, 2, 2, 12, 12, '#a9d7ee'); px(g, 3, 3, 4, 1, '#d6efff'); break;
+      case 'leak': px(g, 0, 4, 16, 3, '#8a8f98'); px(g, 0, 4, 16, 1, '#b0b5be'); px(g, 8, 7, 1, 4, '#5aa8e8'); g.fillStyle = '#5aa8e8'; g.beginPath(); g.ellipse(8, 13, 6, 2, 0, 0, 7); g.fill(); break;
+      case 'waterValve': px(g, 0, 9, 16, 3, '#6a7a8a'); px(g, 0, 9, 16, 1, '#9aaabb'); px(g, 7, 6, 2, 4, '#444'); g.fillStyle = '#2a6cc8'; g.beginPath(); g.arc(8, 4, 4, 0, 7); g.fill(); g.fillStyle = '#aad'; g.beginPath(); g.arc(8, 4, 1.5, 0, 7); g.fill(); break;
+      case 'washer': px(g, 1, 1, 14, 14, '#e8ecf0'); px(g, 2, 2, 12, 2, '#bbb'); g.fillStyle = '#4a6a8a'; g.beginPath(); g.arc(8, 9, 4.5, 0, 7); g.fill(); g.fillStyle = '#9fd6ee'; g.beginPath(); g.arc(8, 9, 3, 0, 7); g.fill(); break;
+      case 'deskW': px(g, 0, 5, 16, 10, '#a8794a'); px(g, 0, 5, 16, 1, '#c99a6a'); px(g, 3, 7, 5, 4, '#fff'); px(g, 9, 2, 5, 5, '#222'); px(g, 10, 3, 3, 3, '#5ac8ff'); break;
+      case 'noticeBoard': px(g, 2, 2, 12, 10, '#a8794a'); px(g, 3, 3, 10, 8, '#d8b88a'); px(g, 4, 4, 3, 3, '#fff'); px(g, 8, 4, 4, 3, '#ffe9a0'); px(g, 5, 8, 5, 2, '#ffb0b0'); break;
       default: px(g, 0, 0, 16, 16, '#f0f');
     }
     return c;
@@ -123,9 +164,8 @@
     up: [['.kppk..kppk.', '.kbbk..kbbk.'], ['..kppkkppk..', '..kbbkkbbk..']],
     right: [['..kpppkppk..', '..kbbbkbbk..'], ['...kppppk...', '...kbbbbk...']],
   };
-  P.player = (col, row) => {
+  function drawChar(col, p, rowIdx) {
     const c = mk(16, 16), g = c.getContext('2d');
-    const rk = PJ.RANKS[Math.min(row, PJ.RANKS.length - 1)], p = rk.palette;
     const dirs = ['down', 'up', 'right'];
     const dir = dirs[Math.min(col >> 1, 2)], step = col & 1;
     const pal = { k: '#1b1b2b', h: p.hair, s: '#f3c9a0', c: p.c, w: p.w, a: p.a, p: p.p, b: '#2a2a2a' };
@@ -148,9 +188,10 @@
       else px(g, 9, 4, 3, 1, '#ffd24a');
     }
     // 직급 뱃지 (가슴)
-    if (dir !== 'up') px(g, dir === 'down' ? 11 : 9, 9, 1, 1, row >= 3 ? '#fff6a8' : p.a);
+    if (dir !== 'up') px(g, dir === 'down' ? 11 : 9, 9, 1, 1, rowIdx >= 3 ? '#fff6a8' : p.a);
     return c;
-  };
+  }
+  P.player = (col, row) => drawChar(col, PJ.RANKS[Math.min(row, PJ.RANKS.length - 1)].palette, row);
 
   /* --------------------------- 업무 오브젝트 ------------------------------- */
   P.objects = (col, row) => {
@@ -230,6 +271,11 @@
     playerFrame(rank, dir, step) {
       const d = dir === 'left' ? 'right' : dir;
       return this.frame('player', A.player.dirCol[d] * 2 + step, rank);
+    },
+    npcFrame(idx, dir, step) { // NPC(동료/입주민): 플레이스홀더 전용, 시트 사용 시 주임 스프라이트로 대체
+      const d = dir === 'left' ? 'right' : dir, col = A.player.dirCol[d] * 2 + step, key = 'npc:' + idx + ':' + col;
+      if (cache[key]) return cache[key];
+      return (cache[key] = images.player ? this.frame('player', col, 1) : drawChar(col, PJ.NPCS[idx % PJ.NPCS.length].palette, 1));
     },
     objectFrame(type, i) { const o = A.objects[type]; return this.frame('objects', Math.max(0, Math.min(o.frames - 1, i)), o.row); },
   };
