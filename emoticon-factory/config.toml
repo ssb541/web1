@@ -46,3 +46,7 @@ url = "https://ogqmarket.naver.com/search?q=%EB%8F%84%ED%98%95"
 [analyze]
 min_real_items = 30              # 실데이터가 이보다 적으면 샘플 데이터 병행 사용(리포트에 명시)
 seed_file = "data/seed_sample.json"
+
+[review]
+pass_score = 80                  # 항목별 통과 점수
+max_fix_rounds = 3               # 미달 시 자동 수정 최대 횟수

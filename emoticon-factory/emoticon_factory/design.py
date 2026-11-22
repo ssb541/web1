@@ -21,6 +21,16 @@ def face(cid, x, y, kind, s=1.0):
         out += [f'<circle id="{p}-eye-l" cx="{x-e:.0f}" cy="{y}" r="{6*s:.0f}" fill="{INK}"/>',
                 f'<circle id="{p}-eye-r" cx="{x+e:.0f}" cy="{y}" r="{6*s:.0f}" fill="{INK}"/>',
                 f'<ellipse id="{p}-mouth" cx="{x}" cy="{y+20*s:.0f}" rx="{6*s:.0f}" ry="{8*s:.0f}" fill="{INK}"/>']
+    elif kind == "sad":
+        out += [f'<circle id="{p}-eye-l" cx="{x-e:.0f}" cy="{y}" r="{5*s:.0f}" fill="{INK}"/>',
+                f'<circle id="{p}-eye-r" cx="{x+e:.0f}" cy="{y}" r="{5*s:.0f}" fill="{INK}"/>',
+                f'<path id="{p}-mouth" d="M{x-10*s:.0f} {y+22*s:.0f} q{10*s:.0f} {-12*s:.0f} {20*s:.0f} 0" stroke="{INK}" stroke-width="3" fill="none" stroke-linecap="round"/>',
+                f'<path id="{p}-tear" d="M{x-e:.0f} {y+8*s:.0f} q{-5*s:.0f} {9*s:.0f} 0 {12*s:.0f} q{5*s:.0f} {-3*s:.0f} 0 {-12*s:.0f}z" fill="#7CC4F0"/>']
+    elif kind == "love":
+        for side, sx in (("l", -e), ("r", e)):
+            hx = x + sx
+            out.append(f'<path id="{p}-eye-{side}" d="M{hx:.0f} {y+7*s:.0f} c{-12*s:.0f} {-8*s:.0f} {-8*s:.0f} {-18*s:.0f} 0 {-10*s:.0f} c{8*s:.0f} {-8*s:.0f} {12*s:.0f} {2*s:.0f} 0 {10*s:.0f}z" fill="#FF5C7A"/>')
+        out.append(f'<path id="{p}-mouth" d="M{x-10*s:.0f} {y+14*s:.0f} q{10*s:.0f} {12*s:.0f} {20*s:.0f} 0" stroke="{INK}" stroke-width="3" fill="none" stroke-linecap="round"/>')
     elif kind == "cheer":
         out += [f'<path id="{p}-eye-l" d="M{x-e-7*s:.0f} {y+3} l{7*s:.0f} {-7*s:.0f} l{7*s:.0f} {7*s:.0f}" stroke="{INK}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
                 f'<path id="{p}-eye-r" d="M{x+e-7*s:.0f} {y+3} l{7*s:.0f} {-7*s:.0f} l{7*s:.0f} {7*s:.0f}" stroke="{INK}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -42,6 +52,11 @@ def body(cid, kind, x, y, r, color):
     if kind == "triangle":
         return f'<polygon id="{cid}-body" points="{x},{y-r} {x+r*1.05:.0f},{y+r*0.8:.0f} {x-r*1.05:.0f},{y+r*0.8:.0f}" {st}/>'
     return f'<rect id="{cid}-body" x="{x-r}" y="{y-r}" width="{2*r}" height="{2*r}" rx="14" {st}/>'
+
+
+def char_colors(palette=None):
+    pal = (list(palette or []) + DEFAULT_PALETTE)[:3] if palette else DEFAULT_PALETTE[:3]
+    return dict(zip(("circle", "triangle", "square"), pal))
 
 
 def build_svg(palette=None, topic="도형 캐릭터"):

@@ -1,0 +1,11 @@
+{
+  "_notice": "규격은 공식 문서가 아니라 제3자 자료/가정에서 가져온 값이다. verified=false 인 항목은 제출 전 반드시 공식 제안 가이드에서 재확인한다. 카카오는 2025-11 스튜디오 개편으로 규격이 바뀌었을 수 있다.",
+  "checked_on": "2026-11-22",
+  "kakao_static": {"verified": false, "source": "숨고 제작가이드(제3자) - 카카오 공식 아님", "count": 32, "width": 360, "height": 360,
+                    "format": "png", "transparent": true, "max_kb": 150},
+  "kakao_animated": {"verified": false, "source": "숨고 제작가이드(제3자) - 카카오 공식 아님", "count_png": 21, "count_gif": 3,
+                      "width": 360, "height": 360, "max_gif_frames": 24, "max_kb": 2048},
+  "ogq_sticker": {"verified": false, "source": "공식 규격을 찾지 못함 - 아래는 가정값(assumed)", "assumed_count": 24,
+                   "width": 740, "height": 640, "format": "png", "transparent": true, "max_kb": 1024,
+                   "assumed_apng_frames": [5, 20], "assumed_max_seconds": 4}
+}

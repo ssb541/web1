@@ -19,6 +19,26 @@ class T(unittest.TestCase):
     def test_tokens(self):
         self.assertIn("곰돌이", tokens("말랑한 곰돌이의 하루"))
 
+    def test_adjust_and_trend(self):
+        from emoticon_factory.review import adjust, trend_fit
+        from emoticon_factory.produce import DEFAULT_PARAMS
+        p, notes = adjust(DEFAULT_PARAMS, {"가독성": (50, ["cov_low", "face_small"]), "트렌드 적합": (50, ["phrase_missing:힘내!"])})
+        self.assertGreater(p["char_r"], DEFAULT_PARAMS["char_r"])
+        self.assertIn("힘내!", p["extra_phrases"])
+        self.assertEqual(trend_fit({"phrases": [("사랑해", 1)]}, DEFAULT_PARAMS)[0], 100)
+
+    def test_psd_header(self):
+        import struct, tempfile, pathlib
+        from PIL import Image
+        from emoticon_factory.produce import write_psd
+        d = pathlib.Path(tempfile.mkdtemp())
+        Image.new("RGBA", (20, 10), (255, 0, 0, 255)).save(d / "layer_000.png")
+        Image.new("RGBA", (20, 10), (255, 0, 0, 255)).save(d / "sheet_full.png")
+        write_psd(d, [("a", "")], d / "x.psd", 20, 10)
+        b = (d / "x.psd").read_bytes()
+        self.assertEqual(b[:4], b"8BPS")
+        self.assertEqual(struct.unpack(">IIHH", b[14:26]), (10, 20, 8, 3))
+
 
 if __name__ == "__main__":
     unittest.main()

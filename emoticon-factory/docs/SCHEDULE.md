@@ -20,3 +20,7 @@ emoticon-factory 폴더에서 `python -m emoticon_factory run`을 실행한다.
 ## 한도에 걸렸을 때
 - 코드 쪽: 시간(600s)·요청(30회) 상한 초과 → 단계 상태 `paused` 기록, 종료코드 2. 오류 → 재시도 후 `failed` 기록. 완료된 단계는 다음 실행에서 건너뜀(`python -m emoticon_factory status`).
 - 구독 한도로 세션 자체가 못 뜬 경우는 코드가 실행되지 않으므로 로그가 남지 않는다. routines 페이지의 실행 이력에서 확인하고 다음 날 실행이 자동 재시도한다.
+
+## 2단계 이후 환경 요구사항
+- 2단계는 Pillow(`pip install -r requirements.txt`)와 node+playwright(Chromium)가 필요하다. 클라우드 기본 이미지에는 playwright/Chromium이 있지만 Pillow 유무는 환경마다 다르다. 환경 setup script에 `pip install -r emoticon-factory/requirements.txt`를 넣어 두자.
+- 렌더 폰트는 한글 지원 폰트(WenQuanYi Zen Hei 등)에 의존한다. 폰트가 없으면 문구가 깨지므로 setup script에서 한글 폰트(예: fonts-noto-cjk) 설치를 권장.

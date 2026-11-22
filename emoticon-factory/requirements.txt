@@ -1,0 +1,2 @@
+pillow>=10        # 2단계(produce/review): 이미지 합성·GIF/APNG
+# 렌더링: node + playwright(chromium) 필요 - 클라우드 기본 이미지에 사전 설치됨

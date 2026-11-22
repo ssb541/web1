@@ -3,6 +3,9 @@ from .core import load_config, setup_logging, connect, Budget, run_step, today_k
 from .collect import collect
 from .analyze import analyze, write_report, slug
 from .design import design
+from .produce import produce, DEFAULT_PARAMS
+from .review import score, adjust
+from .package import package
 
 
 def main(argv):
@@ -31,7 +34,53 @@ def main(argv):
             ("manual: 사람이 검토·승인하기 전에는 다음 단계로 넘어가지 않습니다.\n" if cfg["general"]["approval_mode"] == "manual" else "auto: 자동 진행 허용.\n"), encoding="utf-8")
         return f"{msg}; 결과 폴더 {d.relative_to(ROOT)}"
 
-    steps = {"collect": do_collect, "analyze": do_analyze, "design": do_design}
+    def load_res():
+        res = st.get("res") or analyze(cfg, db, log)
+        return res, ROOT / cfg["general"]["output_dir"] / res["date"] / slug(res["topic"])
+
+    def do_produce():
+        res, outdir = load_res()
+        if not (outdir / "character_sheet.svg").exists():
+            raise RuntimeError("character_sheet.svg 없음 - design 먼저")
+        pf = outdir / "params.state.json"
+        params = json.loads(pf.read_text()) if pf.exists() and "--fresh" not in argv else dict(DEFAULT_PARAMS)
+        info = produce(cfg, res, outdir, params, log)
+        pf.write_text(json.dumps(params))
+        return f"produce {info}"
+
+    def do_review():
+        res, outdir = load_res()
+        rcfg, params, history = cfg["review"], json.loads((outdir / "params.state.json").read_text()), []
+        for rnd in range(rcfg["max_fix_rounds"] + 1):
+            budget.check()
+            sc = score(outdir, res, params)
+            log.info("검수 %d회차: %s", rnd, {k: v[0] for k, v in sc.items()})
+            bad = {k: v for k, v in sc.items() if v[0] < rcfg["pass_score"]}
+            if not bad or rnd == rcfg["max_fix_rounds"]:
+                break
+            params, notes = adjust(params, sc)
+            if not notes:
+                history.append(f"{rnd + 1}회차: 미달({', '.join(bad)}) - 자동 수정 방법 없음")
+                break
+            history.append(f"{rnd + 1}회차: 미달({', '.join(f'{k} {v[0]}' for k, v in bad.items())}) → " + ", ".join(notes))
+            produce(cfg, res, outdir, params, log)
+        (outdir / "params.state.json").write_text(json.dumps(params))
+        st["review"] = (sc, history, params)
+        (outdir / "review.json").write_text(json.dumps({"scores": {k: v[0] for k, v in sc.items()}, "issues": {k: v[1] for k, v in sc.items()}, "history": history}, ensure_ascii=False, indent=1), encoding="utf-8")
+        return f"점수 { {k: v[0] for k, v in sc.items()} }, 수정 {len(history)}회"
+
+    def do_package():
+        res, outdir = load_res()
+        rv = st.get("review")
+        if rv is None:
+            rj = json.loads((outdir / "review.json").read_text())
+            sc = {k: (v, rj["issues"][k]) for k, v in rj["scores"].items()}
+            rv = (sc, rj["history"], json.loads((outdir / "params.state.json").read_text()))
+        ok = package(cfg, res, outdir, rv[1], rv[0], rv[2])
+        return f"package {'통과' if ok else '미달(사람 검토 필요)'}"
+
+    steps = {"collect": do_collect, "analyze": do_analyze, "design": do_design,
+             "produce": do_produce, "review": do_review, "package": do_package}
     if cmd == "status":
         for r in db.execute("SELECT * FROM step_runs ORDER BY run_date DESC, started DESC LIMIT 15"):
             print(dict(r))
