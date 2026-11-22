@@ -8,7 +8,9 @@
     return {
       v: 1, level: 1, exp: 0, gold: 0, rank: 0,
       skills: { weedPull: 1, mower: 1, shovel: 1, blower: 1, kind: 1 },
-      stats: { weed: 0, snow: 0, complaint: 0 },
+      stats: { weed: 0, snow: 0, complaint: 0, event: 0, boss: 0 },
+      items: { hotpack: 0, quietMower: 0, earmuff: 0, coffee: 0, catSnack: 0 },
+      auto: false, ending: false,
       muted: false, savedAt: 0,
     };
   }
@@ -27,6 +29,8 @@
         d.exp = num(s.exp, 0); d.gold = Math.floor(num(s.gold, 0));
         Object.keys(d.skills).forEach((k) => { d.skills[k] = Math.min(15, Math.floor(num(s.skills && s.skills[k], 1, 1))); });
         Object.keys(d.stats).forEach((k) => { d.stats[k] = Math.floor(num(s.stats && s.stats[k], 0)); });
+        Object.keys(d.items).forEach((k) => { d.items[k] = Math.min(PJ.ITEM_MAX, Math.floor(num(s.items && s.items[k], 0))); });
+        d.auto = !!s.auto; d.ending = !!s.ending;
         d.muted = !!s.muted;
       } catch (e) { console.warn('[Save] 불러오기 실패, 새로 시작합니다.', e); }
       return d;

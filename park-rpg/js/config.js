@@ -51,6 +51,9 @@
       weed:      { row: 0, frames: 3 },
       snow:      { row: 1, frames: 3 },
       complaint: { row: 2, frames: 2 },
+      fire:      { row: 3, frames: 2 }, // 돌발 이벤트: 화재 오경보
+      elevator:  { row: 4, frames: 2 }, // 돌발 이벤트: 엘리베이터 멈춤
+      villain:   { row: 5, frames: 2 }, // 네임드 보스: 이중주차 빌런
       anchor: [8, 8],
     },
   };
@@ -81,6 +84,13 @@
       palette: { c: '#202329', a: '#ffd24a', w: '#ffffff', p: '#16181d', hair: '#c4c4c4', hat: null, glasses: true },
       promote: { lv: 30, gold: 12000, tasks: { weed: 150, snow: 100, complaint: 70 } },
     },
+    { // 히든 전직(엔딩): 소장 이후
+      id: 'bosajang', name: '박사장', title: '터프팅 공방 대표', maxLv: 60, hidden: true,
+      speed: 104, power: 3.0, expMult: 2.4, goldMult: 2.6, reachBonus: 16, hpMult: 2.4,
+      palette: { c: '#c8793a', a: '#ff7ab8', w: '#f2f2f2', p: '#4a3a32', hair: '#c4c4c4', hat: '#ff7ab8', glasses: true },
+      promote: { lv: 50, gold: 30000, tasks: { weed: 300, snow: 200, complaint: 150 }, bosses: 3, items: 5,
+        label: '2027 퇴사 후 터프팅 공방 창업' },
+    },
   ];
 
   /* ------------------------------ 스킬 ------------------------------------ */
@@ -91,8 +101,9 @@
     mower:    { id: 'mower',    name: '예초기 돌리기', icon: '🚜', group: 'weed',      type: 'area',   target: 'weed',      dmg: 3.2, cd: 6.0,  radius: 56, unlockLv: 3, baseCost: 60, key: '1', desc: '주변 잡초를 한꺼번에 갈아버리는 범위 스킬.' },
     shovel:   { id: 'shovel',   name: '눈 삽 치우기', icon: '⛏️', group: 'snow',      type: 'single', target: 'snow',      dmg: 1.3, cd: 0.36, reach: 28, unlockLv: 1, baseCost: 20, desc: '가까운 눈 더미를 삽으로 퍼내는 기본 제설 스킬.' },
     blower:   { id: 'blower',   name: '제설기 가동',  icon: '❄️', group: 'snow',      type: 'area',   target: 'snow',      dmg: 4.5, cd: 8.0,  radius: 64, bonus: 1.35, unlockLv: 5, baseCost: 90, key: '2', desc: '넓은 범위의 눈을 날려버리는 고효율 스킬. 보상 보너스!' },
-    kind:     { id: 'kind',     name: '친절한 안내',  icon: '😊', group: 'complaint', type: 'single', target: 'complaint', dmg: 3.0, cd: 7.0,  reach: 40, bonus: 2.0, unlockLv: 2, baseCost: 50, key: '3', desc: '민원을 한 번에 해결하고 추가 보상을 받는다.' },
+    kind:     { id: 'kind',     name: '친절한 안내',  icon: '😊', group: 'complaint', type: 'single', target: ['complaint', 'event'], dmg: 3.0, cd: 7.0,  reach: 40, bonus: 2.0, unlockLv: 2, baseCost: 50, key: '3', desc: '민원(과 돌발 상황)을 크게 처리하고 추가 보상을 받는다.' },
     // 기본 응대: Space 로 민원 상대할 때 자동 사용 (강화 대상 아님)
+    urgent:   { id: 'urgent',   name: '긴급 대응',    icon: '🚨', group: 'event',     type: 'single', target: 'event',     dmg: 1.6, cd: 0.35, reach: 34, unlockLv: 1, baseCost: 0, hidden: true, desc: '' },
     answer:   { id: 'answer',   name: '기본 응대',    icon: '💬', group: 'complaint', type: 'single', target: 'complaint', dmg: 1.0, cd: 0.5,  reach: 34, unlockLv: 1, baseCost: 0, hidden: true, desc: '' },
   };
 
@@ -102,6 +113,40 @@
     weed:      { id: 'weed',      name: '잡초 더미', hp: 3, exp: 6,  gold: 4,  max: 9, interval: 3.2, zone: 'grass' },
     snow:      { id: 'snow',      name: '눈 더미',   hp: 4, exp: 8,  gold: 6,  max: 7, interval: 4.0, zone: 'paved' },
     complaint: { id: 'complaint', name: '민원',      hp: 3, exp: 14, gold: 12, max: 3, interval: 8.0, zone: 'path', ttl: 50 },
+  };
+
+  /* ----------------------- 돌발 당직 이벤트 / 네임드 보스 -------------------- */
+  PJ.EVENT = { interval: 45, first: 30, mult: 2.5 };           // 이벤트 주기(초), 첫 발생, 보상 배율
+  PJ.FEVER = { dur: 10, speed: 1.35, rate: 1.8 };              // 피버: 지속시간, 이속 배율, 쿨/공속 배율
+  PJ.EVENTS = [
+    { id: 'fire', text: '🚨 103동 화재 오경보!', sprite: 'fire', hp: 6, ttl: 30, exp: 30, gold: 25, tile: [23, 5], win: '오경보 해제 완료!' },
+    { id: 'elevator', text: '🛗 엘리베이터 멈춤!', sprite: 'elevator', hp: 6, ttl: 30, exp: 30, gold: 25, tile: [13, 5], win: '엘리베이터 정상 운행!' },
+    { id: 'villain', text: '🚗 이중주차 빌런 출현!', name: '이중주차 빌런', sprite: 'villain', boss: true, hp: 16, ttl: 45, exp: 80, gold: 60, zone: 'parking', win: '빌런 퇴치 완료!' },
+  ];
+
+  /* ------------------------ 관리실 유머 장비 도감 ---------------------------- */
+  // 확률 드롭(중복 획득 시 Lv↑, 최대 5). perLv: 레벨당 효과
+  PJ.ITEMS = [
+    { id: 'hotpack', name: '편의점 핫팩', icon: '🔥', desc: '새벽 3교대의 필수품. 주머니에서 꺼내는 순간 세상이 따뜻해진다.', effect: '눈 더미 보상 +10%/Lv' },
+    { id: 'quietMower', name: '무소음 예초기', icon: '🌱', desc: "'무소음'이라 적혀 있지만 민원은 소리 대신 눈빛으로 들어온다.", effect: '제초 스킬 위력 +10%/Lv' },
+    { id: 'earmuff', name: '방한 귀마개', icon: '🎧', desc: '민원 목소리가 한결 부드럽게 들린다. 발걸음도 가벼워진다.', effect: '이동속도 +5%/Lv' },
+    { id: 'coffee', name: '아메리카노 샷추가', icon: '☕', desc: '관리실 인생은 샷 추가 전과 후로 나뉜다.', effect: '스킬 쿨타임 -4%/Lv' },
+    { id: 'catSnack', name: '고양이 간식', icon: '🐟', desc: '단지 길고양이의 신뢰를 얻었다. 민원인도 어쩐지 순해진다.', effect: '민원·돌발 골드 +10%/Lv' },
+  ];
+  PJ.ITEM_MAX = 5;
+
+  /* ---------------- 박주임 겉대사 / 속마음(구름) 말풍선 ---------------------- */
+  PJ.SPEECH = {
+    say: ['네, 바로 확인하겠습니다!', '금방 처리해 드리겠습니다~', '불편 드려 죄송합니다!', '관리사무소입니다, 바로 가겠습니다!', '안전하게 마무리했습니다!'],
+    think: {
+      any: ['집에 가서 칼바람 한 판 하고 싶다...', '올겨울 눈 적당히 왔으면...', '퇴근까지 몇 시간 남았지...', '커피... 커피가 필요해...', '월급날이 언제더라...'],
+      weed: ['이 풀, 어제도 뽑았는데...', '잡초는 왜 이렇게 성실할까...'],
+      snow: ['올겨울 눈 적당히 왔으면...', '제설함 열쇠 어디 뒀더라...'],
+      complaint: ['방금 전화로 말씀하셨잖아요...', '친절, 친절, 친절...'],
+      boss: ['저 차 주인, 오늘도 전화 안 받겠지...', '이 맛에 관리실 한다... 아니다.'],
+    },
+    bossSay: ['주차선은 지켜 주세요!'],
+    event: ['긴급 상황입니다, 침착하게 대응하겠습니다!'],
   };
 
   /* ------------------------------- 맵 ------------------------------------- */
@@ -160,7 +205,9 @@
         { text: '관리사무소', x: 4.5, y: 1.9, color: '#fff' },
         { text: '주차장', x: 23.5, y: 7.6, color: '#fff' },
         { text: '중앙 화단', x: 13.5, y: 10.2, color: '#fff' },
-        { text: '동측 잔디밭', x: 4.5, y: 9.6, color: '#fff' },
+        { text: '서측 잔디밭', x: 4.5, y: 9.6, color: '#fff' },
+        { text: '102동', x: 14, y: 1.9, color: '#fff' },
+        { text: '103동', x: 24, y: 1.9, color: '#fff' },
         { text: '보행로', x: 19.5, y: 5.5, color: '#fff' },
       ],
     };

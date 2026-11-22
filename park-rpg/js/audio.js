@@ -29,6 +29,10 @@
     promote: () => { [392, 523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.18, 'square', 0.05, null, i * 0.11)); },
     buy: () => { tone(700, 0.08, 'square', 0.05); tone(1000, 0.12, 'square', 0.05, null, 0.07); },
     error: () => tone(150, 0.15, 'square', 0.05, 90),
+    alarm: () => { for (let i = 0; i < 4; i++) tone(i % 2 ? 660 : 880, 0.12, 'square', 0.05, null, i * 0.14); },
+    item: () => { [660, 880, 1320].forEach((f, i) => tone(f, 0.1, 'triangle', 0.06, null, i * 0.07)); },
+    tick: () => tone(1400, 0.03, 'square', 0.015),
+    fever: () => { [440, 660, 880, 1100].forEach((f, i) => tone(f, 0.1, 'sawtooth', 0.04, null, i * 0.06)); },
     spawn: () => tone(400, 0.06, 'sine', 0.025, 600),
   };
   PJ.Audio = {

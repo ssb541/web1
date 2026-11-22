@@ -8,7 +8,7 @@
   let el = {}, tab = 'skills', open = false, btns = {}, hudKey = '';
 
   function init() {
-    ['gold', 'lv', 'expFill', 'expText', 'whoTitle', 'avatar', 'toasts', 'panel', 'panelBody', 'btnMenu', 'btnClose', 'skills', 'stick', 'knob']
+    ['gold', 'lv', 'expFill', 'expText', 'whoTitle', 'avatar', 'toasts', 'btnAuto', 'feverChip', 'evbar', 'evText', 'evTime', 'evTimeFill', 'evHpFill', 'evHpWrap', 'ending', 'endText', 'endBtn', 'endAvatar', 'panel', 'panelBody', 'btnMenu', 'btnClose', 'skills', 'stick', 'knob']
       .forEach((id) => { el[id] = document.getElementById(id); });
     Input.bindStick(el.stick, el.knob);
 
@@ -32,6 +32,8 @@
     });
 
     el.btnMenu.addEventListener('click', () => togglePanel());
+    el.btnAuto.addEventListener('click', () => PJ.Game.toggleAuto());
+    el.endBtn.addEventListener('click', () => { el.ending.hidden = true; PJ.Game.setPaused(false); });
     el.btnClose.addEventListener('click', () => closePanel());
     el.panel.addEventListener('pointerdown', (e) => { if (e.target === el.panel) closePanel(); });
     document.querySelectorAll('.tabs [data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; Audio.play('swing'); render(); }));
@@ -62,11 +64,24 @@
     if (key !== hudKey) { hudKey = key; drawAvatar(el.avatar, s.rank); }
     const pi = PJ.Rules.promoteInfo();
     el.btnMenu.classList.toggle('alert', !!(pi && pi.ok));
+    el.btnAuto.classList.toggle('on', !!PJ.state.auto);
+    el.btnAuto.textContent = PJ.state.auto ? '🤖 AUTO ON' : '🕹️ AUTO OFF';
     if (open) render();
   }
   // 매 프레임: 쿨타임 표시
   function tick() {
     const st = PJ.state;
+    const ev = st.event;
+    if (ev) {
+      const o = ev.obj;
+      el.evbar.hidden = false;
+      el.evText.textContent = ev.def.text;
+      el.evTime.textContent = Math.ceil(Math.max(0, o.ttl)) + '초 · ×' + PJ.EVENT.mult + ' 보상 + 피버';
+      el.evTimeFill.style.width = Math.max(0, o.ttl / o.maxTtl) * 100 + '%';
+      el.evHpFill.style.width = Math.max(0, o.hp / o.maxHp) * 100 + '%';
+    } else if (!el.evbar.hidden) el.evbar.hidden = true;
+    if (st.fever > 0) { el.feverChip.hidden = false; el.feverChip.textContent = '🔥 FEVER ' + st.fever.toFixed(1) + 's'; }
+    else if (!el.feverChip.hidden) el.feverChip.hidden = true;
     Object.keys(btns).forEach((id) => {
       const x = btns[id], b = x.b;
       if (id === 'main') return;
@@ -86,7 +101,7 @@
   function render() {
     document.querySelectorAll('.tabs [data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
     const scroll = el.panelBody.scrollTop;
-    el.panelBody.innerHTML = tab === 'skills' ? skillsHtml() : tab === 'promo' ? promoHtml() : infoHtml();
+    el.panelBody.innerHTML = tab === 'skills' ? skillsHtml() : tab === 'dex' ? dexHtml() : tab === 'promo' ? promoHtml() : infoHtml();
     el.panelBody.scrollTop = scroll;
     if (tab === 'promo') el.panelBody.querySelectorAll('canvas[data-rank]').forEach((c) => drawAvatar(c, +c.dataset.rank));
   }
@@ -112,20 +127,46 @@
     return h;
   }
 
+  function dexHtml() {
+    const R = PJ.Rules, owned = R.itemsOwned();
+    let h = `<div class="help" style="margin-bottom:10px">관리실 유머 장비 도감 <b>${owned} / ${PJ.ITEMS.length}</b> · 처리한 업무에서 확률 드롭 (민원 12%, 돌발 40%, 보스 100%). 중복 획득하면 Lv↑ (최대 ${PJ.ITEM_MAX}).</div>`;
+    PJ.ITEMS.forEach((it) => {
+      const lv = R.item(it.id), pips = Array.from({ length: PJ.ITEM_MAX }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('');
+      h += lv
+        ? `<div class="card dex"><div class="ic">${it.icon}</div><div class="tx"><b>${it.name}</b><em>Lv.${lv}</em><span class="pips">${pips}</span><p>${it.desc}</p><small>🎒 ${it.effect}</small></div></div>`
+        : `<div class="card unknown"><div class="ic">${it.icon}</div><div class="tx"><b>???</b><p>아직 발견하지 못한 장비입니다.</p></div></div>`;
+    });
+    return h;
+  }
+
+  function showEnding() {
+    PJ.Game.setPaused(true);
+    drawAvatar(el.endAvatar, RANKS.length - 1);
+    const lines = ['2027년 봄, 박소장은 사직서를 냈다.', '“관리소장 경력 20년. 이제는 내 공방이다.”',
+      '작은 상가에 걸린 간판 — <b>「박사장의 터프팅 공방」</b>', '눈 대신 털실을, 예초기 대신 터프팅 건을 든 박사장.',
+      '오늘도 단지 어딘가에서 누군가 외친다. “관리사무소죠?”', '…박사장은 이제 전화를 받지 않는다. (아마도.)'];
+    el.endText.innerHTML = lines.map((l, i) => `<p style="animation-delay:${0.8 + i * 1.1}s">${l}</p>`).join('');
+    el.ending.hidden = false; Audio.play('promote');
+  }
+
   function promoHtml() {
     const R = PJ.Rules, s = PJ.state.save, rk = R.rank(), pi = R.promoteInfo();
     let h = '<div class="ladder">';
-    RANKS.forEach((r, i) => { h += `<div class="step ${i === s.rank ? 'cur' : i > s.rank ? 'future' : ''}"><canvas width="16" height="16" data-rank="${i}"></canvas>${r.name}</div>`; });
+    RANKS.forEach((r, i) => {
+      const secret = r.hidden && s.rank < i - 1;
+      h += `<div class="step ${i === s.rank ? 'cur' : i > s.rank ? 'future' : ''}"><canvas width="16" height="16" data-rank="${i}"></canvas>${secret ? '???' : r.name}</div>`;
+    });
     h += '</div>';
     h += `<div class="card"><div class="tx"><b>현재: ${rk.name}</b> <em>「${rk.title}」</em>
       <p>이동속도 ${rk.speed} · 업무 위력 ×${rk.power} · EXP ×${rk.expMult} · 골드 ×${rk.goldMult} · 사거리 +${rk.reachBonus}</p>
       <small>최고 레벨 Lv.${rk.maxLv}</small></div></div>`;
-    if (!pi) return h + '<div class="help">🎖️ 최고 직급 <b>소장</b> 입니다! 더 이상의 전직은 없습니다.<br>2차 업데이트를 기대해 주세요.</div>';
+    if (!pi) return h + '<div class="help">🏆 <b>박사장</b> 엔딩까지 달성했습니다! 계속 플레이하며 레벨 60에 도전해 보세요.</div>';
     const n = pi.next;
+    if (n.hidden) h += `<div class="card hidden-card"><div class="ic">🧶</div><div class="tx"><b>히든 전직</b><p>「${n.promote.label}」 — 퇴사하고 터프팅 공방을 차린다. 전직 시 히든 엔딩이 열립니다.</p></div></div>`;
     h += `<h3>다음 직급: ${n.name} 「${n.title}」</h3>
       <div class="help" style="margin-bottom:8px">전직 시: 이동속도 ${n.speed} · 업무 위력 ×${n.power} · EXP ×${n.expMult} · 골드 ×${n.goldMult} · 최고 레벨 Lv.${n.maxLv}<br>복장/뱃지 색이 바뀌고, 현장 오브젝트가 더 단단해집니다.</div>
       <ul class="req">${pi.checks.map((c) => `<li class="${c.ok ? 'ok' : 'no'}"><span>${c.ok ? '✔' : '✖'} ${c.label}</span><b>${fmt(Math.min(c.now, 1e12))} / ${fmt(c.need)}</b></li>`).join('')}</ul>
-      <button class="btn big" data-promote ${pi.ok ? '' : 'disabled'}>${pi.ok ? `🎖️ ${n.name}(으)로 전직하기 (💰${fmt(n.promote.gold)})` : '조건을 모두 채워 주세요'}</button>`;
+      <button class="btn big" data-promote ${pi.ok ? '' : 'disabled'}>${pi.ok ? `🎖️ ${n.hidden ? n.promote.label + ' (💰' + fmt(n.promote.gold) + ')' : n.name + '(으)로 전직하기 (💰' + fmt(n.promote.gold) + ')'}` : '조건을 모두 채워 주세요'}</button>`;
     return h;
   }
 
@@ -137,8 +178,11 @@
       <div><span>🌿 잡초 처리</span><b>${fmt(s.stats.weed)}</b></div><div><span>❄️ 눈 처리</span><b>${fmt(s.stats.snow)}</b></div>
       <div><span>💬 민원 처리</span><b>${fmt(s.stats.complaint)}</b></div><div><span>이동속도</span><b>${rk.speed}</b></div></div>
       <h3>조작법</h3><div class="help">
-      <b>PC</b> · 이동 <kbd>WASD</kbd>/<kbd>방향키</kbd> · 작업 <kbd>Space</kbd>/<kbd>J</kbd>/마우스 클릭(누르고 있으면 연타) · 스킬 <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> · 메뉴 <kbd>Esc</kbd>/<kbd>M</kbd><br>
-      <b>모바일</b> · 왼쪽 가상 조이스틱 이동 · 오른쪽 <b>✋ 작업</b> 버튼(꾹 누르기 가능) / 스킬 버튼 / 화면 터치도 작업<br>
+      <b>PC</b> · 이동 <kbd>WASD</kbd>/<kbd>방향키</kbd> · 작업 <kbd>Space</kbd>/<kbd>J</kbd>(누르면 연타) · 스킬 <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> · 자동 순찰 <kbd>T</kbd> · 메뉴 <kbd>Esc</kbd>/<kbd>M</kbd><br>
+      <b>클릭/터치 이동</b> · 맵의 잡초·눈·민원·돌발 상황을 클릭(터치)하면 자동으로 걸어가 작업합니다. 빈 땅을 누르면 그곳까지 이동합니다.<br>
+      <b>모바일</b> · 왼쪽 가상 조이스틱 이동 · 오른쪽 <b>✋ 작업</b> 버튼(꾹 누르기 가능) / 스킬 버튼<br>
+      <b>AUTO</b> · 켜면 가까운 업무를 스스로 찾아 처리하고, 쿨타임이 찬 스킬도 자동 사용합니다. 직접 조작하면 즉시 중단됩니다.<br>
+      <b>돌발 당직</b> · 45초마다 긴급 상황/이중주차 빌런 출현! 제한시간 안에 처리하면 보상 ×2.5 + 10초 피버.<br>
       가까이 가면 흰 점선 링이 뜨는 대상에게 기본 작업이 자동으로 들어갑니다. 연속 처리하면 <b>콤보</b> 보너스 EXP!</div>
       <div class="row"><button class="btn" data-sound>${Audio.isMuted() ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'}</button><button class="btn danger" data-reset>저장 데이터 초기화</button></div>
       <p class="help" style="margin-top:10px">진행 상황은 이 브라우저에 자동 저장됩니다. (마지막 저장: ${s.savedAt ? new Date(s.savedAt).toLocaleTimeString('ko-KR') : '-'})</p>`;
@@ -152,5 +196,5 @@
     else if ('reset' in t.dataset) { if (confirm('정말 모든 진행도를 지우고 처음부터 시작할까요?')) PJ.Game.reset(); }
   }
 
-  PJ.UI = { init, refresh, tick, toast, togglePanel, openPanel, closePanel, isOpen: () => open };
+  PJ.UI = { init, refresh, tick, toast, showEnding, togglePanel, openPanel, closePanel, isOpen: () => open };
 })();

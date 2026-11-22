@@ -19,6 +19,7 @@
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Tab'].includes(c)) e.preventDefault();
     PJ.Audio.unlock();
     if (c === 'Escape' || c === 'KeyM' || c === 'Tab') { if (!e.repeat) emit('menu'); return; }
+    if (c === 'KeyT') { if (!e.repeat) emit('auto'); return; }
     keys.add(c);
     if (c === 'Space' || c === 'KeyJ') { held.action = true; return; }
     if (e.repeat) return;

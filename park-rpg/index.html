@@ -24,6 +24,13 @@
 
     <main id="stage">
       <canvas id="cv" width="960" height="640"></canvas>
+      <button id="btnAuto" class="autoBtn" type="button">🤖 AUTO OFF</button>
+      <div id="feverChip" hidden></div>
+      <div id="evbar" hidden>
+        <div class="evtx"><b id="evText"></b><span id="evTime"></span></div>
+        <div class="evbars"><i id="evTimeFill"></i></div>
+        <div class="evbars hp" id="evHpWrap"><i id="evHpFill"></i></div>
+      </div>
       <div id="toasts"></div>
     </main>
 
@@ -36,11 +43,22 @@
       <div class="sheet" role="dialog" aria-modal="true">
         <div class="tabs">
           <button data-tab="skills">스킬</button>
+          <button data-tab="dex">도감</button>
           <button data-tab="promo">전직</button>
           <button data-tab="info">정보·설정</button>
           <button id="btnClose" class="close">✕</button>
         </div>
         <div id="panelBody"></div>
+      </div>
+    </div>
+
+    <div id="ending" hidden>
+      <div class="endbox">
+        <div class="endtag">HIDDEN ENDING</div>
+        <h2>2027 퇴사 후<br>터프팅 공방 창업</h2>
+        <canvas id="endAvatar" width="16" height="16"></canvas>
+        <div id="endText"></div>
+        <button id="endBtn" class="btn big">계속 플레이 (박사장)</button>
       </div>
     </div>
   </div>
