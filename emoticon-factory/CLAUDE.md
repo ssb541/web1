@@ -15,8 +15,8 @@
 4. produce: 멈티 32컷, 움티, 플랫폼 규격 PNG/APNG/GIF, 레이어 PSD. (specs/platforms.json 기준. 규격은 verified=false — 제3자/가정값)  ← 구현(2단계)
 5. review: 가독성·일관성·트렌드 적합·규격 충족 점수, 미달 시 최대 3회 자동 수정(대리 지표). ← 구현(2단계)
 6. package: output/날짜/주제/ 정리, 체크리스트, README. ← 구현(2단계)
-7. submit: 1차는 제출 직전 폴더까지. AI 사용 여부는 사실대로 기재. ← 미구현
-8. learn: 심사 결과를 DB에 입력받아 반영. ← 테이블만 준비(`reviews_feedback`)
+7. submit: 1차는 제출 직전 폴더까지. AI 사용 여부는 사실대로 기재. ← 구현(3단계, 제출 직전까지: submission/ + application_draft.json + SUBMIT_STATUS.md. 실제 제출·로그인 없음)
+8. learn: 심사 결과를 DB에 입력받아 반영. ← 구현(4단계): `feedback <주제> approved|rejected 사유`, `learn`; 주제 점수 ±0.1/건(최대 ±0.3) 반영
 
 ## 공통 규칙
 - 모든 단계에 로그, 재시도, 실행 비용·시간 상한. 설정은 `config.toml` 하나로 관리(승인 모드, 상한, 플랫폼 목록).
@@ -25,7 +25,7 @@
 
 ## 구현 단계
 - [x] 1단계: collect + analyze + design(SVG 1개) + 근거 리포트
-- [x] 2단계: produce/review/package  - [ ] 3단계: submit 자동화  - [ ] 4단계: learn
+- [x] 2단계: produce/review/package  - [x] 3단계(제출 직전까지)  - [x] 4단계: learn  - [ ] 브라우저 제출 자동화
 
 ## 실행
 `python -m emoticon_factory run` (전체) / `collect|analyze|design|produce|review|package` (단계별, `--force`로 재실행) / `status` / `feedback`

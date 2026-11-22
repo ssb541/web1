@@ -54,7 +54,10 @@ def analyze(cfg, db, log):
     search_n = [r for r in rows if r["kind"] == "search"]
 
     cands, hint = [], cfg["general"]["preferred_theme_hint"]
-    feedback = {r["topic"]: (1 if r["result"] == "approved" else -1) for r in db.execute("SELECT topic,result FROM reviews_feedback")}
+    feedback, fb_reasons = {}, {}
+    for r in db.execute("SELECT topic,result,reason FROM reviews_feedback ORDER BY id"):
+        feedback[r["topic"]] = feedback.get(r["topic"], 0) + (1 if r["result"] == "approved" else -1)
+        fb_reasons.setdefault(r["topic"], []).append(f"{r['result']}: {r['reason'] or '사유 없음'}")
     for theme, cues in THEMES.items():
         hit = [r for r in rows if any(c in r["title"] for c in cues)]
         saturation = len(hit) / n                                   # 높을수록 레드오션
@@ -66,7 +69,7 @@ def analyze(cfg, db, log):
         score = 0.35 * demand + 0.25 * max(momentum, 0) + 0.3 * (1 - saturation) + 0.2 * gap
         if theme == hint:
             score += cfg["general"]["hint_bonus"]
-        score += 0.1 * feedback.get(theme, 0)
+        score += 0.1 * max(-3, min(3, feedback.get(theme, 0)))
         cands.append(dict(theme=theme, score=round(score, 3), saturation=round(saturation, 3), demand=round(demand, 3),
                           momentum=round(momentum, 3), gap=round(gap, 3), n=len(hit), examples=[r["title"] for r in hit[:3]]))
     cands.sort(key=lambda c: -c["score"])
@@ -80,7 +83,7 @@ def analyze(cfg, db, log):
     phrases = Counter(p for r in rows for p in PHRASES if p in r["title"])
     result = dict(date=today_kst(), n_items=n, sample_used=sample_used, topic=top["theme"], candidates=cands,
                   top_keywords=kw.most_common(12), popular_keywords=pop.most_common(8), new_keywords=new.most_common(8),
-                  palette=[c for c, _ in palette_votes.most_common(4)], phrases=phrases.most_common(6),
+                  palette=[c for c, _ in palette_votes.most_common(4)], feedback_reasons=fb_reasons, phrases=phrases.most_common(6),
                   search_count=len(search_n), by_platform=dict(Counter(r["platform"] for r in rows)))
     db.execute("DELETE FROM topics WHERE run_date=?", (result["date"],))
     for c in cands:
@@ -119,6 +122,8 @@ def write_report(cfg, res, svg_name):
           "- 단순한 도형(원·삼각형·사각형)은 레이어 분리와 애니메이션이 쉽고, 작은 크기에서도 가독성이 높다.",
           "- 표정 4종(기쁨/졸림/놀람/응원)은 인기 목록에 자주 나오는 반응·인사·응원 문구군과 맞춘다.",
           f"- 시안: `{svg_name}` (도형마다 id 부여, 레이어 분리 가능).", "",
+          "## 4-1. 지난 심사 결과 반영",
+          *( [f"- {k}: " + " / ".join(v) for k, v in res.get("feedback_reasons", {}).items()] or ["- 아직 입력된 심사 결과 없음 (`python -m emoticon_factory feedback <주제> approved|rejected 사유`)"] ), "",
           "## 5. 한계와 주의",
           "- 1단계는 제목 텍스트만으로 색감·포즈·문구를 추정한다. 이미지 분석은 후속 단계.",
           "- 이 시안은 AI가 생성했다. 제출 시 신청서의 AI 사용 여부 항목에 사실대로 기재해야 한다.",

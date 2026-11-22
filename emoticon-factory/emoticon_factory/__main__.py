@@ -6,6 +6,7 @@ from .design import design
 from .produce import produce, DEFAULT_PARAMS
 from .review import score, adjust
 from .package import package
+from .submit import submit_prep
 
 
 def main(argv):
@@ -79,14 +80,29 @@ def main(argv):
         ok = package(cfg, res, outdir, rv[1], rv[0], rv[2])
         return f"package {'통과' if ok else '미달(사람 검토 필요)'}"
 
+    def do_submit():
+        res, outdir = load_res()
+        rj = json.loads((outdir / "review.json").read_text())
+        sc = {k: (v, rj["issues"][k]) for k, v in rj["scores"].items()}
+        ready, blockers = submit_prep(cfg, res, outdir, sc, rj["history"])
+        return "READY" if ready else f"BLOCKED {len(blockers)}건: " + " | ".join(blockers)
+
     steps = {"collect": do_collect, "analyze": do_analyze, "design": do_design,
-             "produce": do_produce, "review": do_review, "package": do_package}
+             "produce": do_produce, "review": do_review, "package": do_package, "submit": do_submit}
     if cmd == "status":
         for r in db.execute("SELECT * FROM step_runs ORDER BY run_date DESC, started DESC LIMIT 15"):
             print(dict(r))
         return 0
+    if cmd == "learn":
+        rows = db.execute("SELECT topic,result,reason,run_date FROM reviews_feedback ORDER BY id").fetchall()
+        for r in rows:
+            print(dict(r))
+        print(f"총 {len(rows)}건. 다음 분석부터 주제 점수에 반영됨(주제당 ±0.1/건, 최대 ±0.3).")
+        return 0
     if cmd == "feedback":  # python -m emoticon_factory feedback <topic> approved|rejected [사유]
         topic, result, reason = argv[1], argv[2], " ".join(argv[3:])
+        if result not in ("approved", "rejected"):
+            print("result는 approved 또는 rejected"); return 1
         db.execute("INSERT INTO reviews_feedback(run_date,topic,result,reason,entered_at) VALUES(?,?,?,?,?)", (today_kst(), topic, result, reason, today_kst()))
         db.commit()
         print("저장됨")
