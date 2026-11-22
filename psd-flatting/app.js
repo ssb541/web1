@@ -345,10 +345,34 @@
   }
   const outName = () => S.fileName.replace(/\.psd$/i, '') + '_flat.psd';
 
+  // 확장자 허용 목록에 .psd 가 없는 환경(Claude 아티팩트)용: 무압축 zip 으로 감싸기
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8) { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function zipStore(name, u8) {
+    const nm = new TextEncoder().encode(name), crc = crc32(u8), n = u8.length;
+    const out = new Uint8Array(30 + nm.length + n + 46 + nm.length + 22), dv = new DataView(out.buffer);
+    let o = 0; const w16 = (v) => { dv.setUint16(o, v, true); o += 2; }, w32 = (v) => { dv.setUint32(o, v, true); o += 4; };
+    w32(0x04034b50); w16(20); w16(0x0800); w16(0); w16(0); w16(0x21); w32(crc); w32(n); w32(n); w16(nm.length); w16(0);
+    out.set(nm, o); o += nm.length; out.set(u8, o); o += n;
+    const cd = o;
+    w32(0x02014b50); w16(20); w16(20); w16(0x0800); w16(0); w16(0); w16(0x21); w32(crc); w32(n); w32(n); w16(nm.length); w16(0); w16(0); w16(0); w16(0); w32(0); w32(0);
+    out.set(nm, o); o += nm.length;
+    const cdSize = o - cd;
+    w32(0x06054b50); w16(0); w16(0); w16(1); w16(1); w32(cdSize); w32(cd); w16(0);
+    return out;
+  }
   async function savePsd() {
     if (!S.psd || !S.flat) return;
     try {
       const buf = await busy('PSD 만드는 중…', () => buildPsdBuffer());
+      let dl = null;
+      try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) { dl = null; }
+      if (dl) {
+        const zipName = outName().replace(/\.psd$/i, '') + '.zip';
+        try { await dl.save({ filename: zipName, data: zipStore(outName(), new Uint8Array(buf)) }); toast(`${zipName} 저장됨 (압축을 풀면 ${outName()})`); }
+        catch (e) { if (!e || e.code !== 'declined') toast('저장하지 못했어요: ' + (e && (e.message || e.code) || e), true); }
+        return;
+      }
       const blob = new Blob([buf], { type: 'image/vnd.adobe.photoshop' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = outName();
       document.body.appendChild(a); a.click(); a.remove();
@@ -517,5 +541,5 @@
   } catch (e) { /* 미지원 */ }
 
   initPalette(); setMode('auto'); renderLayerList(); refreshButtons();
-  window.__flatApp = S; // 디버그/테스트용
+  window.__flatApp = S; window.__zipStore = zipStore; // 디버그/테스트용
 })();
