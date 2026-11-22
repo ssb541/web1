@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>PSD 밑색 Flatting</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-tab="layers">
+<header class="top">
+  <h1>PSD 밑색 Flatting</h1>
+  <div class="actions">
+    <button id="btnOpen" class="primary">PSD 열기</button>
+    <button id="btnUndo" disabled title="실행 취소 (Ctrl+Z)">↶</button>
+    <button id="btnRedo" disabled title="다시 실행 (Ctrl+Shift+Z)">↷</button>
+    <button id="btnSave" class="primary" disabled>PSD 저장</button>
+    <button id="btnShare" hidden disabled title="공유 시트에서 '파일에 저장'">공유</button>
+  </div>
+  <input id="file" type="file" accept=".psd,.PSD,image/vnd.adobe.photoshop,application/x-photoshop" hidden>
+</header>
+
+<main class="app">
+  <section id="stage">
+    <div id="wrap"><canvas id="cv" width="1" height="1"></canvas></div>
+    <div id="empty" class="empty">
+      <p><b>프로크리에이트에서 내보낸 .psd</b> 파일을<br>여기로 끌어놓거나 <u>PSD 열기</u>를 누르세요.</p>
+      <p class="sub">모든 처리는 이 기기의 브라우저 안에서만 이루어지며 서버로 업로드되지 않습니다.</p>
+    </div>
+    <div class="zoom">
+      <button id="zIn" title="확대">＋</button>
+      <button id="zOut" title="축소">－</button>
+      <button id="zFit" title="화면에 맞춤">맞춤</button>
+      <span id="zPct">100%</span>
+    </div>
+  </section>
+
+  <div class="dock">
+    <aside id="layersPanel" class="panel">
+      <h2>레이어 <small>(탭하여 선화 레이어 지정)</small></h2>
+      <div id="layerList" class="layers"></div>
+    </aside>
+
+    <aside id="toolsPanel" class="panel">
+      <h2>밑색 설정</h2>
+      <div class="field"><span>선화 레이어</span><b id="sketchName">-</b></div>
+      <label class="field col">
+        <span>틈새 막기 <b id="gapV">4</b>px</span>
+        <input id="gap" type="range" min="0" max="15" step="1" value="4">
+      </label>
+      <label class="field col">
+        <span>선 아래로 번짐(Expand) <b id="expV">2</b>px</span>
+        <input id="exp" type="range" min="1" max="3" step="1" value="2">
+      </label>
+      <details class="adv">
+        <summary>고급: 선 인식 민감도</summary>
+        <label class="field col">
+          <span>임계값 <b id="thrV">100</b> <small>(낮을수록 흐린 선도 선으로 인식)</small></span>
+          <input id="thr" type="range" min="10" max="250" step="5" value="100">
+        </label>
+      </details>
+
+      <div class="seg" role="tablist">
+        <button id="modeAuto" class="on">자동 영역 분리</button>
+        <button id="modeTouch">팔레트 터치</button>
+      </div>
+
+      <div id="paneAuto">
+        <button id="btnAuto" class="big" disabled>Auto-Flat 실행</button>
+        <p class="hint">선 안쪽 닫힌 영역을 각각 다른 색으로 채웁니다(외곽 배경 제외). 기존 밑색은 지워지며 실행 취소로 되돌릴 수 있습니다.</p>
+      </div>
+
+      <div id="paneTouch" hidden>
+        <div id="palette" class="palette"></div>
+        <div class="pal-tools">
+          <input id="colorPick" type="color" value="#e8a0a0" aria-label="색 선택">
+          <button id="palAdd">＋ 팔레트에 추가</button>
+          <button id="palDel">선택 색 삭제</button>
+        </div>
+        <p class="hint">캔버스의 영역을 탭/클릭하면 선택한 색으로 채워집니다. 한 손가락 드래그는 이동, 두 손가락(또는 휠)은 확대·축소입니다.</p>
+      </div>
+
+      <div class="row">
+        <button id="btnClear" disabled>밑색 레이어 비우기</button>
+      </div>
+      <label class="check"><input id="optVis" type="checkbox"> 저장 시 눈 아이콘(표시/숨김) 상태도 파일에 반영</label>
+    </aside>
+  </div>
+</main>
+
+<nav class="tabs">
+  <button data-tab="layers" class="on">레이어</button>
+  <button data-tab="tools">도구</button>
+</nav>
+
+<div id="busy" hidden><div class="spin"></div><span id="busyMsg">처리 중…</span></div>
+<div id="toast" hidden></div>
+
+<script src="vendor/ag-psd.js"></script>
+<script src="fill.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
