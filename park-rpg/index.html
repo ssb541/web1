@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1b2030">
+  <title>박주임 키우기 RPG</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="hud">
+      <div class="who">
+        <canvas id="avatar" width="16" height="16"></canvas>
+        <div class="whotx"><b>박주임</b><small id="whoTitle">-</small></div>
+      </div>
+      <div class="lvbox">
+        <span id="lv" class="lv">Lv.1</span>
+        <div class="bar"><i id="expFill"></i><span id="expText"></span></div>
+      </div>
+      <div class="chip" title="골드">💰 <b id="gold">0</b></div>
+      <button id="btnMenu" class="btn">☰ 메뉴</button>
+    </header>
+
+    <main id="stage">
+      <canvas id="cv" width="960" height="640"></canvas>
+      <div id="toasts"></div>
+    </main>
+
+    <footer id="bar">
+      <div id="stick" aria-label="가상 조이스틱"><div id="knob"></div></div>
+      <div id="skills"></div>
+    </footer>
+
+    <div id="panel" hidden>
+      <div class="sheet" role="dialog" aria-modal="true">
+        <div class="tabs">
+          <button data-tab="skills">스킬</button>
+          <button data-tab="promo">전직</button>
+          <button data-tab="info">정보·설정</button>
+          <button id="btnClose" class="close">✕</button>
+        </div>
+        <div id="panelBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/gfx.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
