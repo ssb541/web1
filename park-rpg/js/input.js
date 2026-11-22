@@ -6,6 +6,7 @@
   const held = { action: false };
   const stick = { x: 0, y: 0 };
   const on = {};
+  let press = 0; // 새로 누른 횟수(문 상호작용 등 '새 입력' 판별용)
   const emit = (n, a) => on[n] && on[n](a);
 
   const MOVE = {
@@ -19,8 +20,9 @@
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Tab'].includes(c)) e.preventDefault();
     PJ.Audio.unlock();
     if (c === 'Escape' || c === 'KeyM' || c === 'Tab') { if (!e.repeat) emit('menu'); return; }
+    if (c === 'KeyT') { if (!e.repeat) emit('auto'); return; }
     keys.add(c);
-    if (c === 'Space' || c === 'KeyJ') { held.action = true; return; }
+    if (c === 'Space' || c === 'KeyJ') { if (!e.repeat) press++; held.action = true; return; }
     if (e.repeat) return;
     const m = /^(?:Digit|Numpad)([1-3])$/.exec(c);
     if (m) emit('skill', +m[1]);
@@ -56,6 +58,8 @@
   PJ.Input = {
     on(name, fn) { on[name] = fn; },
     held,
+    get press() { return press; },
+    bump() { press++; },
     bindStick,
     // 이동 벡터 (-1~1). 키보드는 정규화, 조이스틱은 아날로그
     axis() {
