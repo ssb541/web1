@@ -1,0 +1,48 @@
+# 이모티콘 공장 설정 (단일 설정 파일)
+[general]
+approval_mode = "manual"        # manual | auto : manual이면 output에 'PENDING_APPROVAL' 표시만 하고 제출 단계로 안 넘어감
+timezone = "Asia/Seoul"
+db_path = "data/factory.db"
+output_dir = "output"
+log_dir = "logs"
+preferred_theme_hint = "도형 캐릭터"   # 주제 선정 시 가산점(데이터가 쌓이면 0으로)
+hint_bonus = 0.15
+
+[limits]                         # 단계별 상한
+max_run_seconds = 600            # 전체 실행 시간 상한
+max_http_requests = 30           # 1회 실행당 총 요청 수
+max_retries = 2
+retry_backoff_seconds = 5
+request_interval_seconds = 3.0   # 요청 간 최소 간격
+max_items_per_page = 60          # 페이지당 최대 수집 개수
+user_agent = "emoticon-factory-research-bot/0.1 (low-volume; honors robots.txt)"
+
+[platforms.kakao]
+enabled = true
+robots_url = "https://e.kakao.com/robots.txt"
+# URL은 사이트 개편 시 바뀔 수 있음 - 미검증(샌드박스에서 접근 차단되어 확인 못함). 실제 구조 확인 후 수정.
+[[platforms.kakao.sources]]
+kind = "new"
+url = "https://e.kakao.com/"
+[[platforms.kakao.sources]]
+kind = "popular"
+url = "https://e.kakao.com/t/hot"
+[[platforms.kakao.sources]]
+kind = "search"
+keyword = "도형"
+url = "https://e.kakao.com/search?q=%EB%8F%84%ED%98%95"
+
+[platforms.ogq]
+enabled = true
+robots_url = "https://ogqmarket.naver.com/robots.txt"
+[[platforms.ogq.sources]]
+kind = "new"
+url = "https://ogqmarket.naver.com/"
+[[platforms.ogq.sources]]
+kind = "search"
+keyword = "도형"
+url = "https://ogqmarket.naver.com/search?q=%EB%8F%84%ED%98%95"
+
+[analyze]
+min_real_items = 30              # 실데이터가 이보다 적으면 샘플 데이터 병행 사용(리포트에 명시)
+seed_file = "data/seed_sample.json"

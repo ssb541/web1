@@ -1,0 +1,2 @@
+approval_mode=manual
+manual: 사람이 검토·승인하기 전에는 다음 단계로 넘어가지 않습니다.

@@ -1,0 +1,306 @@
+{
+ "_notice": "샘플 데이터입니다. 실제 수집 결과가 아닌 파이프라인 시연용 가상 제목들이며 트렌드 근거로 쓸 수 없습니다.",
+ "items": [
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "말랑한 곰돌이의 하루",
+   "rank": 1
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "귀여운 고양이 집사 일상",
+   "rank": 2
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "직장인 생존 토끼",
+   "rank": 3
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "무심한 오리 반응모음",
+   "rank": 4
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "동그라미 친구들",
+   "rank": 5
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "퇴근하고 싶은 햄찌",
+   "rank": 6
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "강아지 꾸러미 사랑해",
+   "rank": 7
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "눈치보는 감자",
+   "rank": 8
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "파스텔 병아리 인사",
+   "rank": 9
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "졸린 곰 만년 피곤",
+   "rank": 10
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "냥냥 고양이 답장",
+   "rank": 11
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "빵빵한 식빵냥",
+   "rank": 12
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "설레는 토끼 연애편지",
+   "rank": 13
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "말 많은 앵무새",
+   "rank": 14
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "응원하는 곰돌이 화이팅",
+   "rank": 15
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "MZ 직장인 고양이",
+   "rank": 16
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "별별 별이 인사",
+   "rank": 17
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "귀여운 공룡 리액션",
+   "rank": 18
+  },
+  {
+   "platform": "kakao",
+   "kind": "new",
+   "keyword": null,
+   "title": "감동 받은 펭귄",
+   "rank": 19
+  },
+  {
+   "platform": "ogq",
+   "kind": "new",
+   "keyword": null,
+   "title": "네모난 두부 친구들",
+   "rank": 20
+  },
+  {
+   "platform": "kakao",
+   "kind": "popular",
+   "keyword": null,
+   "title": "사랑해 곰돌이 데일리",
+   "rank": 1
+  },
+  {
+   "platform": "ogq",
+   "kind": "popular",
+   "keyword": null,
+   "title": "냥이 집사 대화",
+   "rank": 2
+  },
+  {
+   "platform": "kakao",
+   "kind": "popular",
+   "keyword": null,
+   "title": "토끼 직장인 퇴근 요정",
+   "rank": 3
+  },
+  {
+   "platform": "ogq",
+   "kind": "popular",
+   "keyword": null,
+   "title": "귀여운 강아지 인사 모음",
+   "rank": 4
+  },
+  {
+   "platform": "kakao",
+   "kind": "popular",
+   "keyword": null,
+   "title": "햄스터 먹보 일상",
+   "rank": 5
+  },
+  {
+   "platform": "ogq",
+   "kind": "popular",
+   "keyword": null,
+   "title": "고양이 반응 한마디",
+   "rank": 6
+  },
+  {
+   "platform": "kakao",
+   "kind": "popular",
+   "keyword": null,
+   "title": "곰 응원 화이팅 세트",
+   "rank": 7
+  },
+  {
+   "platform": "ogq",
+   "kind": "popular",
+   "keyword": null,
+   "title": "오리 무표정 리액션",
+   "rank": 8
+  },
+  {
+   "platform": "kakao",
+   "kind": "popular",
+   "keyword": null,
+   "title": "병아리 파스텔 인사",
+   "rank": 9
+  },
+  {
+   "platform": "ogq",
+   "kind": "popular",
+   "keyword": null,
+   "title": "귀여운 식빵 고양이",
+   "rank": 10
+  },
+  {
+   "platform": "kakao",
+   "kind": "popular",
+   "keyword": null,
+   "title": "졸린 곰 피곤 일상",
+   "rank": 11
+  },
+  {
+   "platform": "ogq",
+   "kind": "popular",
+   "keyword": null,
+   "title": "감자 눈치 리액션",
+   "rank": 12
+  },
+  {
+   "platform": "kakao",
+   "kind": "popular",
+   "keyword": null,
+   "title": "직장인 곰 야근 탈출",
+   "rank": 13
+  },
+  {
+   "platform": "ogq",
+   "kind": "popular",
+   "keyword": null,
+   "title": "토끼 사랑 고백",
+   "rank": 14
+  },
+  {
+   "platform": "kakao",
+   "kind": "popular",
+   "keyword": null,
+   "title": "펭귄 감사 인사",
+   "rank": 15
+  },
+  {
+   "platform": "kakao",
+   "kind": "search",
+   "keyword": "도형",
+   "title": "도형 친구들 동그라미",
+   "rank": 1
+  },
+  {
+   "platform": "ogq",
+   "kind": "search",
+   "keyword": "도형",
+   "title": "세모 네모 동그라미 캐릭터",
+   "rank": 2
+  },
+  {
+   "platform": "kakao",
+   "kind": "search",
+   "keyword": "도형",
+   "title": "도형 몬스터 리액션",
+   "rank": 3
+  },
+  {
+   "platform": "ogq",
+   "kind": "search",
+   "keyword": "도형",
+   "title": "네모 두부 인사",
+   "rank": 4
+  },
+  {
+   "platform": "kakao",
+   "kind": "search",
+   "keyword": "도형",
+   "title": "동그라미 곰 말랑",
+   "rank": 5
+  },
+  {
+   "platform": "ogq",
+   "kind": "search",
+   "keyword": "도형",
+   "title": "삼각형 요정",
+   "rank": 6
+  },
+  {
+   "platform": "kakao",
+   "kind": "search",
+   "keyword": "도형",
+   "title": "기하학 고양이",
+   "rank": 7
+  },
+  {
+   "platform": "ogq",
+   "kind": "search",
+   "keyword": "도형",
+   "title": "도형 일상 대화",
+   "rank": 8
+  }
+ ]
+}
