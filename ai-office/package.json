@@ -1,0 +1,7 @@
+{
+  "name": "ai-office",
+  "version": "0.1.0",
+  "private": true,
+  "description": "나만의 픽셀 AI 사무실",
+  "scripts": { "start": "node server.js" }
+}
