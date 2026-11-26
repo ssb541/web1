@@ -1,0 +1,401 @@
+<title>나의 AI 사무실</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: pixel office canvas left, control panels right; stacks on phones. Dark pixel-arcade look, single theme. */
+  :root {
+    --bg:#1b1e33; --panel:#252a47; --panel2:#1a1d33; --line:#3a4068; --text:#eceeff; --dim:#9aa2cc;
+    --accent:#ffcf5c; --accent-ink:#2a2000; --ok:#6fe39a; --bad:#ff7d7d; --work:#7ad6ff;
+    --font: "Noto Sans KR", -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 var(--font);
+    padding-block:0; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  header { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; padding-block:12px; max-width:1400px; margin:auto; }
+  h1 { font-size:18px; margin:0; letter-spacing:.5px; }
+  #mode { margin-left:auto; font-size:12px; padding:3px 10px; border-radius:99px; background:var(--panel); border:1px solid var(--line); }
+  main { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:14px; max-width:1400px; margin:auto; padding-bottom:24px; }
+  @media (max-width:900px){ main { grid-template-columns:minmax(0,1fr); } }
+  canvas { width:100%; height:auto; display:block; border:4px solid var(--line); border-radius:6px; background:#000; image-rendering:pixelated; cursor:pointer; }
+  .side { display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .card { background:var(--panel); border:2px solid var(--line); border-radius:8px; padding:12px; min-width:0; }
+  .card h2 { margin:0 0 8px; font-size:14px; color:var(--accent); }
+  label { display:block; font-size:12px; color:var(--dim); margin:6px 0 2px; }
+  input,select,textarea,button { font:inherit; color:var(--text); background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:7px 8px; width:100%; }
+  textarea { resize:vertical; min-height:70px; }
+  .row { display:flex; gap:8px; align-items:flex-end; } .row>* { flex:1; min-width:0; }
+  input[type=color] { padding:0; height:34px; }
+  button { background:var(--accent); color:var(--accent-ink); font-weight:700; border:0; cursor:pointer; margin-top:8px; }
+  button:hover { filter:brightness(1.08); }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid var(--work); outline-offset:1px; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.ghost { background:transparent; color:var(--dim); border:1px solid var(--line); font-weight:400; margin-top:6px; width:auto; padding:3px 10px; font-size:12px; }
+  .quick { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .quick button { margin:0; padding:6px 2px; font-size:12px; background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500; }
+  .quick button:hover { border-color:var(--accent); }
+  .task { border-top:1px solid var(--line); padding:8px 0; overflow-wrap:anywhere; }
+  .task:first-child { border-top:0; }
+  .badge { font-size:11px; padding:1px 8px; border-radius:99px; margin-right:6px; white-space:nowrap; }
+  .queued { background:#444a70; } .working { background:var(--accent); color:var(--accent-ink); } .done { background:var(--ok); color:#06301a; } .failed { background:var(--bad); color:#400; }
+  small { color:var(--dim); display:block; }
+  pre { white-space:pre-wrap; overflow-wrap:anywhere; background:#13152a; padding:8px; border-radius:6px; max-height:300px; overflow:auto; margin:6px 0 0; font:12px/1.55 var(--font); }
+  #list { max-height:420px; overflow:auto; }
+  .hint { color:var(--dim); font-size:12px; margin:8px 0 0; }
+  #msg { color:var(--bad); font-size:12px; min-height:16px; margin-top:4px; }
+  .lead { font-size:13px; color:var(--dim); margin:0 0 4px; }
+</style>
+
+<header>
+  <h1>🏢 나의 AI 사무실</h1>
+  <span id="mode">연결 중…</span>
+</header>
+<main>
+  <div>
+    <canvas id="c" width="1200" height="720" aria-label="픽셀 사무실"></canvas>
+    <p class="hint">직원을 클릭하면 선택됩니다. 업무를 받으면 자리에 앉아 일하고, 끝나면 ✅가 뜹니다. 결과는 오른쪽 "업무 현황"에 쌓여요.</p>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>👤 직원 채용</h2>
+      <p class="lead">버튼 한 번으로 바로 채용:</p>
+      <div class="quick" id="quick"></div>
+      <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--dim);font-size:12px">직접 꾸며서 채용</summary>
+        <label for="name">이름</label><input id="name" maxlength="12" placeholder="예) 픽셀">
+        <div class="row">
+          <div><label for="role">역할</label><select id="role"></select></div>
+          <div style="max-width:56px"><label for="color">옷</label><input type="color" id="color" value="#5b8def"></div>
+          <div style="max-width:56px"><label for="hair">머리</label><input type="color" id="hair" value="#3a2a1a"></div>
+        </div>
+        <label for="extra">추가 지침 (선택)</label>
+        <textarea id="extra" style="min-height:44px" placeholder="예) 항상 존댓말, 3줄 이내로 요약"></textarea>
+        <button id="hire">채용하기</button>
+      </details>
+    </div>
+    <div class="card">
+      <h2>📝 업무 지시</h2>
+      <label for="who">담당 직원</label>
+      <select id="who"></select>
+      <button class="ghost" id="fire" hidden>선택한 직원 퇴사</button>
+      <label for="text">할 일</label>
+      <textarea id="text" placeholder="예) 이번 주 회의 안건을 정리해서 공지문 초안으로 써줘"></textarea>
+      <button id="assign">업무 맡기기</button>
+      <div id="msg" role="status"></div>
+    </div>
+    <div class="card">
+      <h2>📂 업무 현황</h2>
+      <label for="filter">보기</label>
+      <select id="filter"><option value="">전체</option></select>
+      <div id="list" style="margin-top:6px"><span class="hint">아직 업무가 없어요.</span></div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const S = 3, W = 400, H = 240;
+  const cv = $('c'), g = cv.getContext('2d');
+
+  // ---------- 역할 ----------
+  const ROLES = {
+    researcher: { icon: '🔎', title: '리서처', names: ['픽셀', '서치', '레이더'], color: '#5b8def', hair: '#3a2a1a',
+      prompt: '너는 꼼꼼한 리서처다. 주어진 주제를 정리해 핵심 요약, 근거, 불확실한 점을 구분해 보고한다. 확실하지 않은 것은 모른다고 말하고 지어내지 않는다.' },
+    writer: { icon: '✍️', title: '작가', names: ['모카', '잉크', '라떼'], color: '#e9647f', hair: '#c98a3a',
+      prompt: '너는 센스 있는 카피라이터/작가다. 요청한 글을 목적과 독자에 맞게 바로 쓸 수 있는 완성본으로 작성한다.' },
+    developer: { icon: '💻', title: '개발자', names: ['코코', '비트', '버그'], color: '#4fbf7a', hair: '#222222',
+      prompt: '너는 실력 있는 개발자다. 요청을 코드와 짧은 설명으로 해결한다. 코드는 바로 실행 가능하게 쓰고 가정은 명시한다.' },
+    planner: { icon: '📋', title: '기획자', names: ['플랜', '마일', '로드'], color: '#f0a43a', hair: '#5a3a22',
+      prompt: '너는 실무형 기획자다. 요청을 목표, 할 일 목록, 우선순위, 일정으로 구조화해 바로 실행 가능한 계획으로 만든다.' },
+    translator: { icon: '🌐', title: '번역가', names: ['링고', '바벨', '로제타'], color: '#9b7be8', hair: '#1f1f3a',
+      prompt: '너는 전문 번역가다. 원문의 뉘앙스를 살려 자연스럽게 번역하고, 필요하면 번역 노트를 덧붙인다.' },
+    secretary: { icon: '🗂️', title: '비서', names: ['노트', '체크', '메모'], color: '#3fb7c9', hair: '#2a2a2a',
+      prompt: '너는 유능한 비서다. 일정 정리, 메일/메시지 초안, 체크리스트 등 대표를 대신해 처리할 일을 간결하고 정확하게 처리한다.' },
+  };
+  const HEX = /^#[0-9a-f]{6}$/i;
+  const hexOr = (v, d) => (typeof v === 'string' && HEX.test(v) ? v : d);
+
+  // ---------- 상태 / 저장소 ----------
+  let employees = [], tasks = [];
+  let selected = null;
+  let db = null, sample = null, user = null;
+  const running = new Set();       // 지금 이 화면에서 실행 중인 직원
+  const live = {};                 // 업무ID -> 스트리밍 중인 텍스트
+  const rt = {};                   // 직원 런타임(위치)
+  const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+
+  async function persist(kind, id, data) {            // data=null이면 삭제
+    const list = kind === 'employees' ? employees : tasks;
+    const i = list.findIndex((x) => x.id === id);
+    if (data === null) { if (i >= 0) list.splice(i, 1); }
+    else if (i >= 0) list[i] = data; else list.push(data);
+    refreshUI();
+    if (!db) return;
+    try { const ref = db.collection(kind).doc(id); if (data === null) await ref.delete(); else await ref.set(data); }
+    catch (e) { setMsg('저장 실패: 이 화면에서만 유지돼요 (' + (e.code || '오류') + ')'); }
+  }
+  const setMsg = (s) => { $('msg').textContent = s || ''; };
+
+  // ---------- 그리기 ----------
+  g.imageSmoothingEnabled = false;
+  const deskPos = (slot) => ({ x: 12 + (slot % 4) * 72, y: 76 + Math.floor(slot / 4) * 76 });
+  const seat = (slot) => { const d = deskPos(slot); return { x: d.x + 22, y: d.y + 12 }; };
+  const LOUNGE = { x0: 308, x1: 384, y0: 104, y1: 212 };
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
+  function text(str, x, y, color, size, align) {
+    g.font = 'bold ' + (size || 5) + 'px "Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+    g.textAlign = align || 'center'; g.fillStyle = color || '#fff'; g.fillText(str, Math.round(x), Math.round(y));
+  }
+  function empStatus(e) {
+    const mine = tasks.filter((t) => t.employeeId === e.id);
+    if (mine.some((t) => t.status === 'working' || t.status === 'queued')) return 'working';
+    const fin = mine.filter((t) => (t.status === 'done' || t.status === 'failed') && t.finishedAt).sort((a, b) => b.finishedAt - a.finishedAt)[0];
+    if (fin && Date.now() - fin.finishedAt < 8000) return fin.status;
+    return 'idle';
+  }
+  function drawRoom(t) {
+    for (let y = 44; y < H; y += 16) for (let x = 0; x < W; x += 16) R(x, y, 16, 16, ((x + y) / 16) % 2 ? '#c9b48f' : '#d6c29d');
+    R(0, 0, W, 44, '#6f7bb8'); R(0, 40, W, 4, '#4a5488'); R(0, 36, W, 4, '#8791cc');
+    for (let i = 0; i < 4; i++) { const x = 20 + i * 76; R(x, 6, 40, 26, '#2f365f'); R(x + 2, 8, 36, 22, '#8fd3ff'); R(x + 2, 8, 36, 8, '#b7e6ff'); R(x + 19, 8, 2, 22, '#2f365f'); }
+    R(336, 8, 18, 18, '#2f365f'); R(338, 10, 14, 14, '#fff');
+    const a = t * 0.2, bx = 345, by = 17;
+    g.strokeStyle = '#222'; g.lineWidth = 1; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + Math.cos(a) * 5, by + Math.sin(a) * 5); g.stroke();
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + Math.cos(a / 12) * 3, by + Math.sin(a / 12) * 3); g.stroke();
+    text('AI OFFICE', 200, 38, '#ffe28a', 6);
+    R(LOUNGE.x0 - 8, LOUNGE.y0 - 8, 92, 118, '#b5546b'); R(LOUNGE.x0 - 6, LOUNGE.y0 - 6, 88, 114, '#c96a82');
+    R(316, 54, 22, 20, '#444'); R(318, 56, 18, 8, '#222'); R(322, 66, 10, 6, '#9fd'); R(326, 60, 2, 2, '#f55');
+    R(366, 58, 8, 14, '#6a4a2a'); R(362, 44, 16, 16, '#3fa65a'); R(366, 40, 8, 10, '#56c775');
+    R(312, 214, 56, 14, '#47507d'); R(312, 210, 56, 6, '#5d68a0'); R(308, 210, 6, 18, '#3a4268'); R(366, 210, 6, 18, '#3a4268');
+    R(386, 196, 14, 36, '#7a4e2b'); R(388, 198, 10, 32, '#9a6a3b'); R(394, 214, 2, 2, '#ffd34d');
+  }
+  function drawChair(slot) { const d = deskPos(slot); R(d.x + 16, d.y + 8, 12, 10, '#3a3f66'); }
+  function drawDeskFront(slot, e, status, t) {
+    const d = deskPos(slot);
+    R(d.x, d.y + 6, 56, 4, '#e0b57a'); R(d.x, d.y + 10, 56, 12, '#b9854f'); R(d.x + 2, d.y + 22, 4, 4, '#7d5630'); R(d.x + 50, d.y + 22, 4, 4, '#7d5630');
+    R(d.x + 36, d.y - 2, 16, 12, '#222'); R(d.x + 37, d.y - 1, 14, 9, status === 'working' ? (Math.floor(t * 6) % 2 ? '#7ae0ff' : '#5cc3ee') : '#1f2a3a');
+    if (status === 'working') for (let i = 0; i < 3; i++) R(d.x + 39, d.y + i * 3, 4 + ((Math.floor(t * 4) + i * 2) % 6), 1, '#fff');
+    R(d.x + 42, d.y + 10, 4, 2, '#222'); R(d.x + 12, d.y + 11, 18, 3, '#f1f1f1');
+    if (e) R(d.x + 2, d.y + 12, 8, 6, hexOr(e.color, '#5b8def'));
+  }
+  function drawPerson(x, y, e, r, t, status) {
+    x = Math.round(x); y = Math.round(y);
+    const col = hexOr(e.color, '#5b8def'), hair = hexOr(e.hair, '#3a2a1a');
+    const sit = r.sitting, bob = r.walking ? (Math.floor(t * 8) % 2) : 0;
+    if (!sit) R(x - 5, y - 1, 10, 2, 'rgba(0,0,0,.25)');
+    if (!sit) { const st = Math.floor(t * 6) % 2; R(x - 3, y - 4 - (r.walking && st ? 1 : 0), 2, 4, '#2b2f4a'); R(x + 1, y - 4 - (r.walking && !st ? 1 : 0), 2, 4, '#2b2f4a'); }
+    const yy = y - bob;
+    R(x - 4, yy - 10, 8, 7, col); R(x - 4, yy - 10, 8, 2, 'rgba(255,255,255,.25)');
+    let ah = 0; if (sit && status === 'working') ah = Math.floor(t * 10) % 2;
+    R(x - 5, yy - 9 + ah, 1, 5, col); R(x + 4, yy - 9 + (1 - ah) * (sit ? 1 : 0), 1, 5, col);
+    R(x - 5, yy - 5 + ah, 1, 1, '#f5cfa0'); R(x + 4, yy - 5, 1, 1, '#f5cfa0');
+    R(x - 3, yy - 16, 6, 6, '#f5cfa0'); R(x - 4, yy - 18, 8, 3, hair); R(x - 4, yy - 16, 1, 3, hair); R(x + 3, yy - 16, 1, 3, hair);
+    const blink = (Math.floor(t * 2 + (e.slot | 0) * 3) % 9) === 0;
+    if (!blink) { R(x - 2, yy - 13, 1, 1, '#222'); R(x + 1, yy - 13, 1, 1, '#222'); } else { R(x - 2, yy - 13, 2, 1, '#8a6a4a'); R(x, yy - 13, 2, 1, '#8a6a4a'); }
+    if (status === 'done') R(x - 1, yy - 11, 2, 1, '#c0605a');
+  }
+  function bubble(x, y, str, bg, fg) {
+    g.font = 'bold 5px "Noto Sans KR",sans-serif';
+    const w = Math.ceil(g.measureText(str).width) + 6, bx = Math.round(x - w / 2), by = Math.round(y - 12);
+    bg = bg || '#fff';
+    R(bx, by, w, 10, bg); R(bx + 2, by - 1, w - 4, 1, bg); R(bx + 2, by + 10, w - 4, 1, bg); R(Math.round(x) - 1, by + 11, 3, 2, bg);
+    text(str, x, by + 7, fg || '#222', 5);
+  }
+  function syncRuntime() {
+    const ids = new Set(employees.map((e) => e.id));
+    for (const id of Object.keys(rt)) if (!ids.has(id)) delete rt[id];
+    for (const e of employees) if (!rt[e.id]) rt[e.id] = { x: 392, y: 226, tx: 350, ty: 190, wait: 0, walking: true, sitting: false };
+  }
+  function step(dt) {
+    for (const e of employees) {
+      const r = rt[e.id]; if (!r) continue;
+      const status = empStatus(e); let target = null;
+      if (status === 'working') target = seat(e.slot);
+      else if (status === 'done' || status === 'failed') target = seat(e.slot);
+      else if (r.sitting) { r.sitting = false; r.tx = rnd(LOUNGE.x0, LOUNGE.x1); r.ty = rnd(LOUNGE.y0 + 10, LOUNGE.y1); }
+      if (target) { r.tx = target.x; r.ty = target.y; }
+      const dx = r.tx - r.x, dy = r.ty - r.y, dist = Math.hypot(dx, dy);
+      if (dist > 1.5) { const sp = Math.min(46 * dt, dist); r.x += (dx / dist) * sp; r.y += (dy / dist) * sp; r.walking = true; r.sitting = false; }
+      else {
+        r.walking = false;
+        const s = seat(e.slot); r.sitting = !!target && Math.hypot(r.x - s.x, r.y - s.y) < 2;
+        if (!target) { r.wait -= dt; if (r.wait <= 0) { r.wait = rnd(2, 6); r.tx = rnd(LOUNGE.x0, LOUNGE.x1); r.ty = rnd(LOUNGE.y0 + 10, LOUNGE.y1); } }
+      }
+    }
+  }
+  function render(t) {
+    g.setTransform(S, 0, 0, S, 0, 0); g.imageSmoothingEnabled = false;
+    drawRoom(t);
+    for (let s = 0; s < 8; s++) drawChair(s);
+    const sorted = [...employees].sort((a, b) => rt[a.id].y - rt[b.id].y);
+    for (const e of sorted) if (rt[e.id].sitting) drawPerson(rt[e.id].x, rt[e.id].y, e, rt[e.id], t, empStatus(e));
+    for (let s = 0; s < 8; s++) { const e = employees.find((x) => x.slot === s); drawDeskFront(s, e, e ? empStatus(e) : 'idle', t); }
+    for (const e of sorted) if (!rt[e.id].sitting) drawPerson(rt[e.id].x, rt[e.id].y, e, rt[e.id], t, empStatus(e));
+    for (const e of employees) {
+      const r = rt[e.id], st = empStatus(e), d = deskPos(e.slot), top = r.y - 22;
+      text(e.name, d.x + 28, d.y + 36, e.id === selected ? '#ffe28a' : '#3a2a1a', 5);
+      text(e.title || '', d.x + 28, d.y + 42, '#6a5a44', 4);
+      if (st === 'working') bubble(r.x, top, '💻 ' + '.'.repeat(1 + (Math.floor(t * 2) % 3)));
+      else if (st === 'done') bubble(r.x, top, '✅ 완료!', '#d6ffe5', '#06501f');
+      else if (st === 'failed') bubble(r.x, top, '⚠️ 실패', '#ffd6d6', '#600');
+      else if (!r.walking && !r.sitting && Math.floor(t / 4 + (e.slot | 0)) % 3 === 0) bubble(r.x, top, '☕ 휴식', '#fff6d6', '#5a4200');
+      if (e.id === selected) { R(r.x - 2, top - 8, 5, 1, '#ffd34d'); R(r.x - 1, top - 7, 3, 1, '#ffd34d'); R(r.x, top - 6, 1, 1, '#ffd34d'); }
+    }
+    if (!employees.length) bubble(200, 120, '왼쪽 위 버튼으로 직원을 채용해보세요!');
+  }
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    syncRuntime(); step(dt); render(now / 1000); requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  cv.addEventListener('click', (ev) => {
+    const b = cv.getBoundingClientRect(), lx = ((ev.clientX - b.left) / b.width) * W, ly = ((ev.clientY - b.top) / b.height) * H;
+    let hit = null;
+    for (const e of employees) { const r = rt[e.id]; if (r && Math.abs(lx - r.x) < 9 && ly > r.y - 22 && ly < r.y + 2) hit = e; }
+    if (hit) { selected = hit.id; $('who').value = hit.id; $('text').focus(); refreshUI(); }
+  });
+
+  // ---------- 업무 실행 (진짜 Claude가 일함) ----------
+  async function pump(empId) {
+    if (running.has(empId) || !sample) return;
+    const emp = employees.find((e) => e.id === empId);
+    const task = tasks.filter((t) => t.employeeId === empId && t.status === 'queued').sort((a, b) => a.createdAt - b.createdAt)[0];
+    if (!emp || !task) return;
+    running.add(empId);
+    await persist('tasks', task.id, { ...task, status: 'working', startedAt: Date.now() });
+    const past = tasks.filter((t) => t.employeeId === empId && t.status === 'done').slice(-3)
+      .map((t) => '- 요청: ' + t.text + '\n  결과 요약: ' + String(t.result || '').slice(0, 300)).join('\n');
+    const prompt = [
+      '너의 이름은 ' + emp.name + ', 직책은 ' + emp.title + '. 사용자(대표)를 대신해 일하는 AI 직원이다.',
+      emp.prompt,
+      '결과는 마크다운 없이도 읽기 쉬운 일반 텍스트 위주의, 바로 전달 가능한 완성본으로 작성한다. 군더더기 인사말은 생략한다. 한국어로 답한다(요청이 다른 언어를 지정하면 따른다).',
+      past ? '참고: 최근에 네가 처리한 일\n' + past : '',
+      '=== 대표의 업무 지시 ===\n' + task.text,
+    ].filter(Boolean).join('\n\n');
+    let patch;
+    try {
+      const { text, truncated } = await sample(prompt, { cache: false, onText: ({ text }) => { live[task.id] = text; refreshUI(); } });
+      patch = { status: 'done', result: text + (truncated ? '\n\n(길이 제한으로 중간에 끝났어요. 더 작게 나눠서 시켜보세요.)' : '') };
+    } catch (e) {
+      const why = { not_granted: 'Claude 사용을 허용하지 않아서 일할 수 없어요.', rate_limited: '사용 한도에 걸렸어요. 잠시 후 다시 시켜주세요.', session_expired: '다시 로그인이 필요해요.' }[e.code];
+      patch = { status: 'failed', error: why || '업무 처리 중 문제가 생겼어요 (' + (e.code || '오류') + ')', result: e.text || '' };
+    }
+    delete live[task.id];
+    const cur = tasks.find((t) => t.id === task.id) || task;
+    await persist('tasks', task.id, { ...cur, ...patch, finishedAt: Date.now() });
+    running.delete(empId);
+    pump(empId);
+  }
+
+  // ---------- UI ----------
+  const STATUS = { queued: '대기', working: '작업중', done: '완료', failed: '실패' };
+  const openIds = new Set();
+  function refreshUI() {
+    $('mode').textContent = !sample ? '⚠️ Claude 연결 안 됨 – 업무 불가' : db ? '🟢 실제 업무 모드 · 자동 저장' : '🟡 실제 업무 모드 · 저장 안 됨(새로고침하면 사라짐)';
+    const whoSel = $('who'), cur = whoSel.value || selected;
+    whoSel.innerHTML = '';
+    for (const e of employees) whoSel.add(new Option(e.name + ' (' + e.title + ')', e.id));
+    if (employees.some((e) => e.id === cur)) whoSel.value = cur;
+    else if (employees[0]) whoSel.value = employees[0].id;
+    if (!employees.some((e) => e.id === selected)) selected = employees[0] ? employees[0].id : null;
+    $('fire').hidden = !employees.length;
+    const fSel = $('filter'), fCur = fSel.value;
+    fSel.innerHTML = ''; fSel.add(new Option('전체', ''));
+    for (const e of employees) fSel.add(new Option(e.name + '의 작업공간', e.id));
+    fSel.value = employees.some((e) => e.id === fCur) ? fCur : '';
+    const list = $('list'); list.innerHTML = '';
+    const shown = tasks.filter((t) => !fSel.value || t.employeeId === fSel.value).sort((a, b) => b.createdAt - a.createdAt);
+    if (!shown.length) { const s = document.createElement('span'); s.className = 'hint'; s.textContent = '아직 업무가 없어요.'; list.append(s); }
+    for (const t of shown) {
+      const emp = employees.find((e) => e.id === t.employeeId);
+      const div = document.createElement('div'); div.className = 'task';
+      const b = document.createElement('span'); b.className = 'badge ' + t.status; b.textContent = STATUS[t.status] || t.status;
+      const q = String(t.text || '');
+      div.append(b, document.createTextNode((emp ? emp.name : '(퇴사)') + ': ' + q.slice(0, 60) + (q.length > 60 ? '…' : '')));
+      const body = t.status === 'working' ? live[t.id] : t.result;
+      if (body) {
+        const d = document.createElement('details'); d.open = openIds.has(t.id) || t.status === 'working';
+        d.addEventListener('toggle', () => (d.open ? openIds.add(t.id) : openIds.delete(t.id)));
+        const s = document.createElement('summary'); s.textContent = t.status === 'working' ? '작성 중…' : '결과 보기'; s.style.cursor = 'pointer';
+        const pre = document.createElement('pre'); pre.textContent = body;
+        d.append(s, pre);
+        if (t.status === 'done') {
+          const cp = document.createElement('button'); cp.className = 'ghost'; cp.textContent = '결과 복사';
+          cp.onclick = async () => { try { await navigator.clipboard.writeText(t.result); cp.textContent = '복사됨 ✓'; } catch { const r = document.createRange(); r.selectNodeContents(pre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); cp.textContent = '글자를 선택했어요, 복사하세요'; } };
+          d.append(cp);
+        }
+        div.append(d);
+      }
+      if (t.error) { const s = document.createElement('small'); s.style.color = 'var(--bad)'; s.textContent = t.error; div.append(s); }
+      list.append(div);
+    }
+  }
+  $('filter').onchange = refreshUI;
+
+  const roleSel = $('role');
+  for (const [k, r] of Object.entries(ROLES)) roleSel.add(new Option(r.icon + ' ' + r.title, k));
+  roleSel.value = 'secretary';
+  for (const [k, r] of Object.entries(ROLES)) {
+    const b = document.createElement('button'); b.textContent = r.icon + ' ' + r.title;
+    b.onclick = () => hire({ role: k });
+    $('quick').append(b);
+  }
+  async function hire(o) {
+    setMsg('');
+    if (employees.length >= 8) return setMsg('자리가 가득 찼어요 (최대 8명)');
+    const r = ROLES[o.role] || ROLES.secretary;
+    const used = new Set(employees.map((e) => e.name));
+    const name = (o.name || '').trim() || r.names.find((n) => !used.has(n)) || (r.names[0] + (employees.length + 1));
+    const slot = [0, 1, 2, 3, 4, 5, 6, 7].find((s) => !employees.some((e) => e.slot === s));
+    const extra = (o.extra || '').trim().slice(0, 500);
+    const emp = { id: uid(), name: name.slice(0, 12), title: r.title, role: o.role, slot,
+      prompt: r.prompt + (extra ? '\n추가 지침: ' + extra : ''), color: hexOr(o.color, r.color), hair: hexOr(o.hair, r.hair), createdAt: Date.now() };
+    selected = emp.id; await persist('employees', emp.id, emp); $('who').value = emp.id;
+  }
+  $('hire').onclick = async () => {
+    await hire({ name: $('name').value, role: roleSel.value, color: $('color').value, hair: $('hair').value, extra: $('extra').value });
+    $('name').value = ''; $('extra').value = '';
+  };
+  $('assign').onclick = async () => {
+    setMsg('');
+    const empId = $('who').value, txt = $('text').value.trim();
+    if (!employees.length) return setMsg('먼저 직원을 채용하세요');
+    if (!txt) return setMsg('업무 내용을 입력하세요');
+    if (!sample) return setMsg('Claude에 연결되지 않아 업무를 처리할 수 없어요');
+    const t = { id: uid(), employeeId: empId, text: txt.slice(0, 4000), status: 'queued', createdAt: Date.now() };
+    $('text').value = ''; selected = empId;
+    await persist('tasks', t.id, t); pump(empId);
+  };
+  $('text').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) $('assign').click(); });
+  let fireArmed = false;
+  $('fire').onclick = async () => {
+    const e = employees.find((x) => x.id === $('who').value); if (!e) return;
+    if (!fireArmed) { fireArmed = true; $('fire').textContent = e.name + ' 퇴사 확인 (한 번 더 누르면 퇴사)'; setTimeout(() => { fireArmed = false; $('fire').textContent = '선택한 직원 퇴사'; }, 4000); return; }
+    fireArmed = false; $('fire').textContent = '선택한 직원 퇴사';
+    for (const t of tasks.filter((t) => t.employeeId === e.id)) await persist('tasks', t.id, null);
+    await persist('employees', e.id, null);
+  };
+
+  // ---------- 부팅 ----------
+  refreshUI();
+  (async () => {
+    try { sample = (await window.claude?.use('sample')) || null; } catch { sample = null; }
+    try { db = (await window.claude?.use('db')) || null; } catch { db = null; }
+    refreshUI();
+    if (!db) return;
+    let first = true;
+    const timer = setTimeout(() => setMsg('저장소에 아직 연결되지 않았어요. 잠시만 기다려주세요.'), 10000);
+    const sub = (kind, apply) => db.collection(kind).onSnapshot((snap) => {
+      clearTimeout(timer);
+      const rows = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      apply(rows); refreshUI();
+      if (first && kind === 'tasks') {
+        first = false;
+        for (const t of tasks) if (t.status === 'working' || t.status === 'queued') persist('tasks', t.id, { ...t, status: 'failed', error: '화면이 닫혀서 중단됐어요. 다시 시켜주세요.', finishedAt: Date.now() });
+      }
+    }, () => { clearTimeout(timer); setMsg('저장소 연결에 문제가 생겼어요. 이 화면에서만 유지돼요.'); });
+    sub('employees', (rows) => { employees = rows.filter((e) => e && typeof e.name === 'string' && typeof e.slot === 'number'); });
+    sub('tasks', (rows) => { tasks = rows.filter((t) => t && typeof t.employeeId === 'string'); });
+  })();
+})();
+</script>
