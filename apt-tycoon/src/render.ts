@@ -193,6 +193,8 @@ export class Renderer {
     if (nA > 0) { c.fillStyle = `rgba(14,24,72,${nA})`; c.fillRect(0, 0, this.Wl, this.Hl); }
     // 날씨 파티클
     this.drawParticles(c, season, dt);
+    if (g.rainy) this.drawRain(c, dt);
+    if (nA > 0.12) this.drawLamps(c, g, nA);
 
     this.drawOverlay(g, v);
   }
@@ -215,6 +217,8 @@ export class Renderer {
       poly(c, [[cx - 7, cy], [cx, cy - 3], [cx + 7, cy], [cx, cy + 3]], '#bfe0f5');
     } else if (ev.key === 'leaves') {
       for (let i = 0; i < 12; i++) { const dx = Math.round((hash(ev.id, i) - 0.5) * 20), dy = Math.round((hash(ev.id, i + 30) - 0.5) * 9); c.fillStyle = ['#c9702a', '#a8481c', '#d8a030'][i % 3]; c.fillRect(cx + dx, cy + dy, 2, 2); }
+    } else if (ev.key === 'typhoon') {
+      for (let i = 0; i < 9; i++) { const dx = Math.round((hash(ev.id, i) - 0.5) * 20), dy = Math.round((hash(ev.id, i + 40) - 0.5) * 9); c.fillStyle = ['#7a5a3a', '#4a7a3a', '#8a8f98'][i % 3]; c.fillRect(cx + dx, cy + dy, 3, 1); c.fillRect(cx + dx + 1, cy + dy - 1, 1, 3); }
     } else if (ev.key === 'pest') {
       for (let i = 0; i < 6; i++) { const dx = Math.round(Math.sin(this.time * 3 + i * 2) * 8), dy = Math.round(Math.cos(this.time * 2.3 + i) * 4) - 4; c.fillStyle = '#222'; c.fillRect(cx + dx, cy + dy, 1, 1); }
     }
@@ -260,6 +264,8 @@ export class Renderer {
       case 'recycle': this.drawRecycle(c, b, g); break;
       case 'garden': this.drawGarden(c, b, season); break;
       case 'tree': this.drawTree(c, b, season); break;
+      case 'community': this.drawCommunity(c, b, nA); break;
+      case 'cctv': this.drawCctv(c, b, nA, t); break;
     }
     c.globalAlpha = 1;
   }
@@ -380,6 +386,30 @@ export class Renderer {
       for (let k = 0; k < 6; k++) { const p = px(b.x + 0.2 + k * (b.w - 0.4) / 6, b.y + b.h + 0.15 + (k % 2) * 0.12, 0.5); c.fillStyle = k % 2 ? '#f0f0f0' : '#38404a'; c.fillRect(Math.round(p[0]) - 2, Math.round(p[1]) - 4, 4, 4); }
     }
   }
+  private drawCommunity(c: Ctx, b: Building, nA: number) {
+    const H = b.level === 2 ? 30 : 24; const lit = nA > 0.12;
+    box(c, b.x, b.y, b.w, b.h, 0, H, '#8fb8d0', '#c9d4de', '#a4b2c0');
+    box(c, b.x - 0.08, b.y - 0.08, b.w + 0.16, b.h + 0.16, H, 3, '#35618a', '#2a4f72', '#223f5c');
+    const [lx, ly] = px(b.x, b.y + b.h, 0), [rx, ry] = px(b.x + b.w, b.y + b.h, 0);
+    const w = b.w * 16;
+    face(c, lx, ly, 0.5, () => {
+      c.fillStyle = lit ? '#ffe6a0' : '#7fb4d8'; c.fillRect(4, -H + 7, w - 8, H - 15);
+      c.fillStyle = '#c9d4de'; for (let k = 1; k < 4; k++) c.fillRect(4 + k * (w - 8) / 4, -H + 7, 1, H - 15);
+      c.fillStyle = '#5a4a3a'; c.fillRect(w / 2 - 4, -9, 8, 9);
+      c.fillStyle = '#e08a1e'; c.fillRect(6, -H + 2, 14, 4); c.fillStyle = '#fff'; c.fillRect(8, -H + 3, 10, 1);
+    });
+    this.windows(c, rx, ry, -0.5, b.h * 16, b.level === 2 ? 3 : 2, 10, lit, 11, '#7fb4d8');
+    box(c, b.x + 0.4, b.y + 0.4, 0.8, 0.5, H + 3, 3, '#3a3f4a', '#2a2f3a', '#1f232b');
+    if (b.level === 2) box(c, b.x + 1.5, b.y + 0.4, 0.9, 0.5, H + 3, 3, '#3a3f4a', '#2a2f3a', '#1f232b');
+  }
+  private drawCctv(c: Ctx, b: Building, nA: number, t: number) {
+    box(c, b.x + 0.42, b.y + 0.42, 0.16, 0.16, 0, 3, '#555', '#444', '#333');
+    box(c, b.x + 0.46, b.y + 0.46, 0.08, 0.08, 3, 14, '#b9bdc6', '#a0a4ae', '#868a94');
+    box(c, b.x + 0.28, b.y + 0.4, 0.44, 0.2, 17, 3, '#40444e', '#2f333c', '#23262d');
+    const [a, d] = px(b.x + 0.5, b.y + 0.62, 18);
+    c.fillStyle = Math.floor(t * 2) % 2 ? '#ff3b30' : '#5a1a16'; c.fillRect(Math.round(a), Math.round(d), 1, 1);
+    void nA;
+  }
   private drawGarden(c: Ctx, b: Building, season: number) {
     box(c, b.x + 0.1, b.y + 0.1, 0.8, 0.8, 0, 3, '#6b4a2b', '#7a5530', '#5a3c22');
     const fl = [['#f08ab8', '#f0e060', '#fff'], ['#e8403a', '#f08030', '#fff'], ['#e0802a', '#a050c0', '#f0d040'], ['#d0dae0', '#a8b8c4', '#fff']][season];
@@ -449,6 +479,8 @@ export class Renderer {
       }
       if (s.role === 'tech' && working) { c.fillStyle = '#ddd'; c.fillRect(x + (p.dir > 0 ? 3 : -4), bodyTop + 2, 2, 1); if (Math.floor(t * 8) % 2) { c.fillStyle = '#ffd84a'; c.fillRect(x + (p.dir > 0 ? 5 : -6), bodyTop + 1, 1, 1); } }
     }
+    if (kid) { c.fillStyle = shade(shirt, 0.55); c.fillRect(x + (p.dir > 0 ? -3 : 2), bodyTop, 1, 2); }
+    if (!isStaff && (p as Resident).kind === 'adult' && (p as Resident).look % 3 === 0) { c.fillStyle = '#4a4f5a'; c.fillRect(x - 2, headY - 2, 4, 1); }
     if (elder) { c.fillStyle = '#7a5a30'; c.fillRect(x + (p.dir > 0 ? 3 : -4), bodyTop + 2, 1, 6); }
     void hgt; void g; void v;
   }
@@ -481,6 +513,33 @@ export class Renderer {
     if (v.carrying && v.hover) {
       const hx = v.hover.x, hy = v.hover.y;
       if (hx >= 0 && hy >= 0 && hx < N && hy < N) poly(c, [px(hx, hy), px(hx + 1, hy), px(hx + 1, hy + 1), px(hx, hy + 1)], 'rgba(255,230,90,.45)', '#ffe45a');
+    }
+  }
+  rain: { x: number; y: number; v: number }[] = [];
+  private drawRain(c: Ctx, dt: number) {
+    c.fillStyle = 'rgba(40,58,86,.17)'; c.fillRect(0, 0, this.Wl, this.Hl);
+    while (this.rain.length < 110) this.rain.push({ x: Math.random() * this.Wl, y: Math.random() * this.Hl, v: 110 + Math.random() * 60 });
+    c.fillStyle = '#a9cdf0';
+    for (const r of this.rain) {
+      r.y += r.v * dt; r.x -= 18 * dt;
+      if (r.y > this.Hl) { r.y = -4; r.x = Math.random() * (this.Wl + 40); }
+      if (r.x < 0) r.x += this.Wl;
+      c.fillRect(Math.round(r.x), Math.round(r.y), 1, 3);
+    }
+  }
+  private drawLamps(c: Ctx, g: Game, nA: number) {
+    const k = nA / 0.4;
+    const lamp = (x: number, y: number, z: number, r: number) => {
+      const [a, b] = px(x, y, z); const sx = a + this.ox, sy = b + this.oy;
+      if (sx < -30 || sy < -30 || sx > this.Wl + 30 || sy > this.Hl + 30) return;
+      for (let i = 0; i < 4; i++) { c.fillStyle = `rgba(255,222,140,${0.07 * k})`; c.beginPath(); c.arc(sx, sy + 4, r * (1 - i * 0.22), 0, 7); c.fill(); }
+      c.fillStyle = '#fff2b0'; c.fillRect(Math.round(sx), Math.round(sy), 1, 1);
+    };
+    lamp(2.7, N - 0.7, 20, 20); lamp(5.35, N - 0.7, 20, 20);
+    for (const b of g.buildings) {
+      if (b.type === 'guard') lamp(b.x + 0.5, b.y + 0.5, 15, 18);
+      else if (b.type === 'cctv') lamp(b.x + 0.5, b.y + 0.5, 17, 24);
+      else if (b.type === 'apt' || b.type === 'community' || b.type === 'office') lamp(b.x + b.w / 2, b.y + b.h, 8, 16);
     }
   }
   private drawParticles(c: Ctx, season: number, dt: number) {

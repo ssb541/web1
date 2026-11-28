@@ -1,6 +1,7 @@
-import { BDEFS, BUILD_ORDER, BType, ROLES, ROLE_ORDER, Role, SEASON_NAMES, SEASON_ICON, RANKS, APT_HH, fmt, N, POST_R } from './data';
+import { DIFFS, Diff, xpNeed, MAX_LV, BDEFS, BUILD_ORDER, BType, ROLES, ROLE_ORDER, Role, SEASON_NAMES, SEASON_ICON, RANKS, APT_HH, fmt, N, POST_R } from './data';
 import { Game, Staff, Resident, EV, ToastKind, clamp } from './game';
 import { Renderer, View } from './render';
+import { initAudio, sfx, toggleMute, isMuted } from './audio';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: string) => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
@@ -22,7 +23,9 @@ function toast(text: string, kind: ToastKind = 'info') {
   while (box.children.length > 4) box.removeChild(box.firstChild!);
   setTimeout(() => d.remove(), kind === 'bad' ? 6500 : 4500);
 }
-function bindGame() { g.onToast = toast; }
+function bindGame() { g.onToast = (t, k) => { toast(t, k); if (k !== 'info') sfx(k); }; g.onSfx = sfx; }
+window.addEventListener('pointerdown', () => initAudio());
+window.addEventListener('keydown', () => initAudio());
 bindGame();
 
 // ───────── 카메라/줌 ─────────
@@ -200,7 +203,7 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 
 const SPEEDS = [1, 2, 4, 8, 16, 32, 64];
-function setSpeed(v: number) { if (g.state === 'play') g.speed = v; }
+function setSpeed(v: number) { if (g.state === 'play' && !g.proposal) g.speed = v; }
 
 // ───────── 사이드 패널 ─────────
 type Tab = 'staff' | 'events' | 'status' | 'report';
@@ -229,7 +232,7 @@ function renderSide() {
         html += `<button class="hire ${g.funds < d.hire ? 'poor' : ''}" data-act="hire" data-v="${r}"><span class="hn">${d.icon} ${d.name} <small>(${n}명)</small></span><small>채용 ${d.hire} · 월급 ${d.salary}</small><small>${d.desc}</small></button>`;
       }
       html += `</div><div class="sec">직원 목록</div>`;
-      for (const s of g.staff) html += `<div class="srow ${view.selected?.kind === 'staff' && view.selected.id === s.id ? 'sel' : ''}" data-act="selstaff" data-v="${s.id}">${roleIcon(s.role)} <b>${esc(s.name)}</b> <small>${ROLES[s.role].name}</small>${s.post ? '📍' : ''}<span class="stat" data-live="st-${s.id}"></span></div>`;
+      for (const s of g.staff) html += `<div class="srow ${view.selected?.kind === 'staff' && view.selected.id === s.id ? 'sel' : ''}" data-act="selstaff" data-v="${s.id}">${roleIcon(s.role)} <b>${esc(s.name)}</b> <small>${ROLES[s.role].name} Lv.${s.lv}</small>${s.post ? '📍' : ''}<span class="stat" data-live="st-${s.id}"></span></div>`;
       if (!g.staff.length) html += `<div class="hint">직원이 없어요. 위에서 채용하세요!</div>`;
       html += `<div class="hint">💡 <b>직원을 지도에서 직접 집어서(드래그)</b> 원하는 곳에 놓으면 반경 ${POST_R}칸이 그 직원의 담당 구역이 돼요. 민원 마커 위에 놓으면 그 민원을 바로 맡습니다. (롤러코스터 타이쿤처럼!)</div>`;
     }
@@ -247,11 +250,12 @@ function renderSide() {
     const S = g.scores;
     const goal = g.rank < RANKS.length - 1 ? RANKS[g.rank + 1] : null;
     const next = g.tiers.find(t => t.star === Math.min(5, g.stars + 1));
-    sig = `t|${g.stars}|${g.rank}|${next ? next.items.map(i => (i.ok ? 1 : 0)).join('') : ''}`;
+    sig = `t|${g.stars}|${g.rank}|${next ? next.items.map(i => (i.ok ? 1 : 0)).join('') : ''}|${g.buffs.map(b => b.label + b.days).join(',')}`;
     if (sig !== lastSig) {
       html += `<div class="sec">입주민 만족 요인</div>`;
       for (const [k, n] of [['clean', '🧹 청결'], ['facility', '🔧 시설'], ['park', '🅿️ 주차'], ['safety', '💂 치안'], ['amen', '🌳 조경·놀이'], ['service', '📋 서비스']] as [string, string][])
         html += `<div class="row"><span class="lb">${n}</span><div class="bar"><i data-bar="sc-${k}"></i></div><span class="v" data-live="sct-${k}"></span></div>`;
+      html += `<div class="sec">진행 중인 효과 (난이도 ${DIFFS[g.diff].name})</div>${g.buffs.length ? g.buffs.map(b => `<div class="chk ${b.sat + b.fee * 40 >= 0 ? 'ok' : 'no'}">• ${esc(b.label)}: 만족도 ${b.sat >= 0 ? '+' : ''}${b.sat}%${b.fee ? `, 관리비 ${b.fee > 0 ? '+' : ''}${Math.round(b.fee * 100)}%` : ''} (${b.days}일)</div>`).join('') : '<div class="evd">없음</div>'}`;
       html += `<div class="sec">직책 · 승진</div><div class="evd" data-live="rk"></div><div class="bar"><i data-bar="rkbar" style="background:var(--gold)"></i></div>`;
       html += `<div class="sec">단지 등급 ${'★'.repeat(g.stars)}${'☆'.repeat(5 - g.stars)}</div>`;
       if (next) {
@@ -314,11 +318,13 @@ function renderInfo() {
   } else if (sel.kind === 'staff') {
     const s = g.staff.find(x => x.id === sel.id);
     if (!s) { view.selected = null; return; }
-    sig = `s${s.id}|${!!s.post}|${view.placeStaff === s}|${fireArm === s.id}`;
+    sig = `s${s.id}|${!!s.post}|${view.placeStaff === s}|${fireArm === s.id}|${s.lv}|${g.funds >= 100}`;
     if (sig !== infoSig) {
-      html = `<div class="sec">${roleIcon(s.role)} ${esc(s.name)} <small>${ROLES[s.role].name}</small></div><div class="evd">월급 ${ROLES[s.role].salary}만원 · <span data-live="st-${s.id}"></span></div>
+      html = `<div class="sec">${roleIcon(s.role)} ${esc(s.name)} <small>${ROLES[s.role].name}</small></div><div class="evd">월급 ${g.salaryOf(s)}만원 · <span data-live="st-${s.id}"></span></div>
+        <div class="row"><span class="lb">Lv.${s.lv}${s.lv >= MAX_LV ? ' MAX' : ''}</span><div class="bar"><i data-bar="sxp" style="background:#7ab8ff"></i></div><span class="v" data-live="sxpt"></span></div>
+        <div class="evd">레벨↑ → 작업 속도·이동 속도 상승 (월급 +15%/Lv)</div>
         <div class="evd">${s.post ? '📍 담당 구역이 지정되어 있어요 (노란 점선 반경 ' + POST_R + '칸)' : '자유 근무 중 (자동으로 일감을 찾아요)'}</div>
-        <div class="evb"><button class="${view.placeStaff === s ? 'on' : ''}" data-act="placestaff" data-v="${s.id}">📍 지도에서 위치 지정</button>${s.post ? `<button data-act="clearpost" data-v="${s.id}">구역 해제</button>` : ''}<button class="bad" data-act="fire" data-v="${s.id}">${fireArm === s.id ? '⚠ 정말 해고? 한 번 더 클릭' : '해고'}</button></div>
+        <div class="evb"><button class="${view.placeStaff === s ? 'on' : ''}" data-act="placestaff" data-v="${s.id}">📍 지도에서 위치 지정</button>${s.post ? `<button data-act="clearpost" data-v="${s.id}">구역 해제</button>` : ''}<button class="${g.funds >= 100 && s.lv < MAX_LV ? 'good' : 'poor'}" data-act="train" data-v="${s.id}">📚 교육 (100만원, +40XP)</button><button class="bad" data-act="fire" data-v="${s.id}">${fireArm === s.id ? '⚠ 정말 해고? 한 번 더 클릭' : '해고'}</button></div>
         <div class="hint">지도에서 직원을 직접 끌어다(드래그) 놓아도 돼요.</div>`;
     }
   } else if (sel.kind === 'event') {
@@ -333,10 +339,13 @@ function renderInfo() {
 
 // ───────── 실시간 값 갱신 ─────────
 function live() {
+  const sel = view.selected;
   const set = (k: string, v: string) => document.querySelectorAll<HTMLElement>(`[data-live="${k}"]`).forEach(e => { if (e.textContent !== v) e.textContent = v; });
   const bar = (k: string, pct: number, color?: string) => document.querySelectorAll<HTMLElement>(`[data-bar="${k}"]`).forEach(e => { e.style.width = clamp(pct, 0, 100) + '%'; if (color) e.style.background = color; });
   const col = (p: number) => (p > 66 ? '#5fd47e' : p > 36 ? '#ffb23f' : '#ff6a5a');
   for (const s of g.staff) set(`st-${s.id}`, s.status);
+  const ss = sel?.kind === 'staff' ? g.staff.find(x => x.id === sel.id) : null;
+  if (ss) { bar('sxp', ss.lv >= MAX_LV ? 100 : ss.xp / xpNeed(ss.lv) * 100); set('sxpt', ss.lv >= MAX_LV ? '-' : `${ss.xp}/${xpNeed(ss.lv)}`); }
   for (const e of g.events) {
     const d = EV[e.key]; const left = e.deadlineT - g.t; const frac = left / d.days * 100;
     set(`el-${e.id}`, `${Math.max(0, left).toFixed(1)}일 남음`);
@@ -349,7 +358,6 @@ function live() {
   const goal = g.rank < RANKS.length - 1 ? RANKS[g.rank + 1] : null;
   if (goal) { set('rk', `현재 ${RANKS[g.rank].title} → 다음 ${goal.title}: ${goal.need}성 이상 & 만족도 ${goal.minSat}%↑ 상태를 ${goal.days}일 유지 (${g.hold}/${goal.days}일)`); bar('rkbar', g.hold / goal.days * 100); }
   set('inc', '+' + fmt(g.income)); set('exp', '-' + fmt(g.expense));
-  const sel = view.selected;
   if (sel?.kind === 'resident') { const r = g.residents.find(x => x.id === sel.id); if (r) { const p = Math.round(r.sat); bar('rsat', p, col(p)); set('rsatt', p + '%'); set('rd', `${moodEmoji(r.sat)} ${r.dest}`); } }
   if (sel?.kind === 'building') { const b = g.bById(sel.id); if (b) { const p = Math.round(b.hp); bar('bhp', p, col(p)); set('bhpt', p + '%'); set('bocc', String(b.occ)); } }
 }
@@ -369,7 +377,7 @@ function hud() {
   const cb = $('h-cmpbar'); cb.style.width = cp + '%'; cb.style.background = cp > 70 ? '#ff4a3a' : cp > 40 ? '#ffb23f' : '#5aa8ff';
   $('h-cmp').style.color = cp > 70 && Math.floor(performance.now() / 350) % 2 ? '#ff4a3a' : '';
   set('h-date', `${g.year}년 ${g.month}월 ${g.dayOfMonth}일`);
-  set('h-season', `${SEASON_ICON[g.season]}${SEASON_NAMES[g.season]}`);
+  set('h-season', `${SEASON_ICON[g.season]}${SEASON_NAMES[g.season]}${g.rainy ? ' ☔' : ''}`);
   set('h-hour', `${g.hour}시`);
   set('stars', '★'.repeat(g.stars) + '☆'.repeat(5 - g.stars));
   set('h-rank', RANKS[g.rank].title);
@@ -408,6 +416,7 @@ function updateHint() {
 document.addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-tool]');
   if (!t) return;
+  sfx('click');
   if (t.dataset.tool !== undefined) { const v = t.dataset.tool; setTool(v === '' ? null : (v as BType | 'demolish')); return; }
   const act = t.dataset.act!, v = t.dataset.v ?? '';
   switch (act) {
@@ -424,13 +433,17 @@ document.addEventListener('click', e => {
     case 'demo': { const b = g.bById(Number(v)); if (b) { g.demolish(b); view.selected = null; } break; }
     case 'fire': { const s = g.staff.find(x => x.id === Number(v)); if (!s) break; if (fireArm === s.id) { fireArm = 0; g.fire(s); view.selected = null; lastSig = ''; } else { fireArm = s.id; fireArmT = performance.now(); } infoSig = ''; break; }
     case 'movebuilding': { const b = g.bById(Number(v)); if (b) { view.tool = null; view.placeStaff = null; view.moveB = b; view.rot = false; refreshToolbar(); updateGhost(); toast('옮길 위치를 클릭하세요 (R 회전, 우클릭/Esc 취소)', 'info'); } break; }
+    case 'train': { const s = g.staff.find(x => x.id === Number(v)); if (s) { g.train(s); infoSig = ''; } break; }
+    case 'mute': { const m = toggleMute(); $('btn-mute').textContent = m ? '🔇' : '🔊'; break; }
+    case 'diff': selDiff = v as Diff; showTitle(); break;
+    case 'prop': { g.resolveProposal(Number(v)); if (!g.proposal) { $('modal').innerHTML = ''; propShown = false; } break; }
     case 'hintx': hintDismissed = $('hint-t').textContent ?? ''; updateHint(); break;
     case 'save': saveGame(true); break;
     case 'load': loadGame(); break;
     case 'continue': loadGame(); break;
     case 'clearpost': { const s = g.staff.find(x => x.id === Number(v)); if (s) { g.clearPost(s); infoSig = ''; lastSig = ''; } break; }
     case 'placestaff': { const s = g.staff.find(x => x.id === Number(v)); if (s) { view.placeStaff = view.placeStaff === s ? null : s; view.tool = null; refreshToolbar(); infoSig = ''; if (view.placeStaff) toast('지도에서 배치할 위치를 클릭하세요', 'info'); } break; }
-    case 'start': startGame(); break;
+    case 'start': startNew(); break;
     case 'restart': restart(); break;
     case 'close': $('modal').innerHTML = ''; if (started && g.state === 'play' && g.speed === 0 && wasSpeed) g.speed = wasSpeed; break;
   }
@@ -457,8 +470,10 @@ function showHelp() {
   wasSpeed = g.speed || 1; if (g.state === 'play') g.speed = 0;
   $('modal').innerHTML = `<div class="box panel"><h1>🏢 단지 타이쿤 도움말</h1>${HELP}<button class="big good" data-act="close">닫기</button></div>`;
 }
+let selDiff: Diff = 'normal';
+let propShown = false;
 function showTitle() {
-  $('modal').innerHTML = `<div class="box panel"><h1>🏢 단지 타이쿤</h1><p>신축·노후 아파트 단지의 <b>관리소장</b>이 되어 시설을 가꾸고, 직원을 고용하고, 민원을 해결해 <b>'명품 5성급 아파트'</b>를 만들어 보세요.</p>${HELP}<button class="big good" data-act="start">▶ 새 게임 시작</button> ${hasSave() ? '<button class="big warn" data-act="continue">📂 이어하기</button>' : ''}</div>`;
+  $('modal').innerHTML = `<div class="box panel"><h1>🏢 단지 타이쿤</h1><p>신축·노후 아파트 단지의 <b>관리소장</b>이 되어 시설을 가꾸고, 직원을 고용하고, 민원을 해결해 <b>'명품 5성급 아파트'</b>를 만들어 보세요.</p>${HELP}<h2>🎚 난이도</h2><div class="evb">${(Object.keys(DIFFS) as Diff[]).map(k => `<button class="${k === selDiff ? 'on' : ''}" data-act="diff" data-v="${k}">${DIFFS[k].name}</button>`).join('')}</div><p>${DIFFS[selDiff].desc}</p><button class="big good" data-act="start">▶ 새 게임 시작</button> ${hasSave() ? '<button class="big warn" data-act="continue">📂 이어하기</button>' : ''}</div>`;
 }
 function endModal() {
   const won = g.state === 'won';
@@ -485,7 +500,15 @@ function loadGame() {
   g.speed = 1; toast('📂 저장한 게임을 불러왔어요', 'good');
 }
 function startGame() { started = true; $('modal').innerHTML = ''; g.speed = 1; buildTabs(); renderSide(); }
+function startNew() {
+  g = new Game(selDiff); bindGame(); view.selected = null; view.tool = null; view.carrying = null; view.placeStaff = null; view.moveB = null;
+  view.camX = 16; view.camY = 150; lastSig = ''; infoSig = ''; endShown = false; propShown = false; $('toasts').innerHTML = '';
+  refreshToolbar(); startGame();
+}
 function restart() {
+  endShown = false; showTitle();
+}
+function restartOld() {
   g = new Game(); bindGame(); view.selected = null; view.tool = null; view.carrying = null; view.placeStaff = null;
   view.camX = 16; view.camY = 150; lastSig = ''; infoSig = ''; $('toasts').innerHTML = '';
   refreshToolbar(); startGame();
@@ -493,6 +516,13 @@ function restart() {
 
 // ───────── 메인 루프 ─────────
 let last = performance.now(), uiT = 0, endShown = false;
+function proposalUi() {
+  const pr = g.proposal;
+  if (!pr || g.state !== 'play') { if (!pr && propShown) { propShown = false; $('modal').innerHTML = ''; } return; }
+  if (propShown) return;
+  propShown = true;
+  $('modal').innerHTML = `<div class="box panel"><h1>📝 ${esc(pr.title)}</h1><p>${esc(pr.desc)}</p><p class="hint">시간이 멈춰 있어요. 선택하면 다시 흐릅니다.</p>${pr.options.map((o, i) => `<div class="evb"><button class="${g.funds >= o.cost ? 'good' : 'poor'}" data-act="prop" data-v="${i}">${esc(o.label)}${o.cost ? ` (-${o.cost}만원)` : ''}</button><span class="evd">${esc(o.tip)}</span></div>`).join('')}</div>`;
+}
 let errShown = 0, lastSave = performance.now();
 function fail(where: string, e: unknown) {
   console.error(where, e);
@@ -520,7 +550,7 @@ function frame(now: number) {
     uiT = 0.12;
     if (fireArm && performance.now() - fireArmT > 3500) { fireArm = 0; infoSig = ''; }
     if (started && performance.now() - lastSave > 20000) { lastSave = performance.now(); saveGame(false); }
-    try { hud(); updateHint(); refreshToolbar(); renderSide(); renderInfo(); live(); } catch (e) { fail('화면', e); lastSig = ''; infoSig = ''; }
+    try { proposalUi(); hud(); updateHint(); refreshToolbar(); renderSide(); renderInfo(); live(); } catch (e) { fail('화면', e); lastSig = ''; infoSig = ''; }
   }
 }
 buildTabs(); renderSide(); refreshToolbar(); hud();

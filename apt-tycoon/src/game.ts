@@ -1,6 +1,6 @@
 import {
   N, BDEFS, BType, ROLES, Role, DAY_SEC, MONTH_DAYS, POST_R,
-  FEE_PER_HH, APT_HH, PARK_SLOTS, monthNumber, seasonOf, RANKS, fmt,
+  FEE_PER_HH, APT_HH, PARK_SLOTS, monthNumber, seasonOf, RANKS, fmt, Diff, DIFFS, MAX_LV, xpNeed,
 } from './data';
 
 export interface P { x: number; y: number }
@@ -34,7 +34,7 @@ export interface Staff extends Mover {
   id: number; role: Role; name: string;
   state: 'idle' | 'walk' | 'work';
   task: Task | null; workT: number; workNeed: number; think: number;
-  post: P | null; carried: boolean; status: string; idleT: number;
+  post: P | null; carried: boolean; status: string; idleT: number; xp: number; lv: number;
 }
 export interface GEvent {
   id: number; key: string; x: number; y: number; bid: number;
@@ -129,6 +129,37 @@ export const EV: Record<string, EvDef> = {
   },
 };
 
+const officeAt = (g: Game) => { const o = g.office(); return { x: Math.floor(o.x + o.w / 2), y: Math.floor(o.y + o.h / 2), bid: o.id }; };
+EV.blackout = {
+  key: 'blackout', title: '정전 발생', icon: '💡', role: 'tech', seasons: null, days: 4, work: 6, cost: 150, out: 450, fail: 15, weight: 0.8,
+  desc: '배전반 이상으로 한 동이 정전됐어요. 엘리베이터도 멈췄습니다!',
+  pick: g => { const b = pickApt(g, 'blackout'); return b ? atB(b) : null; },
+};
+EV.leak = {
+  key: 'leak', title: '수도관 누수', icon: '💧', role: 'tech', seasons: null, days: 6, work: 5, cost: 100, out: 320, fail: 10, weight: 0.9,
+  desc: '노후 배관에서 물이 새고 있어요. 아랫집 천장이 젖었습니다.',
+  pick: g => { const b = pickApt(g, 'leak', b => b.hp > 75); return b ? atB(b) : null; },
+};
+EV.parcel = {
+  key: 'parcel', title: '택배 분실 소동', icon: '📦', role: 'guard', seasons: null, days: 5, work: 4, cost: 0, out: 100, fail: 8, weight: 0.8,
+  desc: '택배가 없어졌다는 항의가 연달아 들어와요. 경비원이 CCTV와 택배 보관함을 확인해야 합니다.',
+  pick: g => { const gs = g.buildings.filter(b => b.type === 'guard'); return gs.length ? atB(pick(gs)) : officeAt(g); },
+};
+EV.council = {
+  key: 'council', title: '입주자대표회의 소집', icon: '🗣️', role: 'manager', seasons: null, days: 8, work: 7, cost: 0, out: 300, fail: 16, weight: 0.7,
+  desc: '관리비 사용 내역을 두고 대표회의가 열려요. 관리주임이 자료를 준비해 설명해야 합니다.',
+  pick: g => officeAt(g),
+};
+EV.drill = {
+  key: 'drill', title: '소방 안전훈련', icon: '🧯', role: 'manager', seasons: null, days: 9, work: 6, cost: 50, out: 200, fail: 6, weight: 0.6,
+  desc: '연 2회 의무 소방훈련 시즌이에요. 안내방송과 대피 훈련을 진행해야 합니다.',
+  pick: g => { const b = pickApt(g, 'drill'); return b ? atB(b) : null; },
+};
+EV.typhoon = {
+  key: 'typhoon', title: '태풍 낙하물 정리', icon: '🌀', role: 'cleaner', seasons: [1, 2], days: 4, work: 7, cost: 40, out: 200, fail: 14, weight: 0.9,
+  desc: '태풍이 지나가며 나뭇가지와 간판이 널렸어요. 사고 나기 전에 치워야 합니다.',
+  pick: g => g.groundNear('typhoon'),
+};
 const NAMES = ['김', '이', '박', '최', '정', '강', '조', '윤', '장', '임', '한', '오', '서', '신', '권', '황', '안', '송'];
 const STAFF_NAMES: Record<Role, string[]> = {
   manager: ['한주임', '오주임', '문주임', '배주임'],
@@ -192,18 +223,43 @@ export class Game {
   lastFundToast = -99;
   onToast: (t: string, k: ToastKind) => void = () => {};
   income = 0; expense = 0;
+  diff: Diff = 'normal'; rainy = false;
+  buffs: { sat: number; fee: number; days: number; label: string }[] = [];
+  proposal: { title: string; desc: string; options: { label: string; cost: number; tip: string; fn: () => void }[] } | null = null;
+  propSpeed = 1;
+  onSfx: (n: string) => void = () => {};
 
-  constructor() {
+  constructor(diff: Diff = 'normal') {
+    this.diff = diff; this.funds = DIFFS[diff].funds;
     this.setupStart();
     this.computeScores();
     for (const r of this.residents) r.sat = this.personalTarget(r);
     this.updateSat();
   }
 
+  // ───────── 급여/수수료/보정 ─────────
+  salaryOf(s: Staff) { return Math.round(ROLES[s.role].salary * (1 + 0.15 * (s.lv - 1))); }
+  feeRate() { return FEE_PER_HH * DIFFS[this.diff].fee * (1 + this.buffs.reduce((a, b) => a + b.fee, 0)); }
+  monthlyIncome(hh: number) { return hh * this.feeRate() * (0.75 + 0.25 * this.sat / 100); }
+  train(s: Staff) {
+    if (s.lv >= MAX_LV) { this.toast('이미 최고 레벨이에요', 'warn'); return; }
+    if (this.funds < 100) { this.toast('교육비가 부족해요 (100만원)', 'warn'); return; }
+    this.funds -= 100; this.gainXp(s, 40); this.toast(`📚 ${s.name} 교육 이수 (+40 XP)`, 'good');
+  }
+  private gainXp(s: Staff, n: number) {
+    if (s.lv >= MAX_LV) return;
+    s.xp += n;
+    while (s.lv < MAX_LV && s.xp >= xpNeed(s.lv)) {
+      s.xp -= xpNeed(s.lv); s.lv++;
+      this.toast(`⬆ ${s.name} 레벨 ${s.lv}! 일이 더 빨라졌어요 (월급 ${this.salaryOf(s)}만원)`, 'good');
+      this.onSfx('level');
+    }
+  }
+
   // ───────── 저장/불러오기 ─────────
   serialize(): string {
     const d = {
-      v: 1, funds: this.funds, day: this.day, dayFrac: this.dayFrac, complaints: this.complaints, sat: this.sat, shock: this.shock,
+      v: 1, diff: this.diff, buffs: this.buffs, funds: this.funds, day: this.day, dayFrac: this.dayFrac, complaints: this.complaints, sat: this.sat, shock: this.shock,
       rank: this.rank, hold: this.hold, history: this.history, lowSatDays: this.lowSatDays, patrol: this.patrol, nextId: this.nextId, stats: this.stats,
       buildings: this.buildings.map(b => ({ ...b, fixer: 0 })),
       residents: this.residents.map(r => ({ ...r, path: [] })),
@@ -221,6 +277,8 @@ export class Game {
       for (const b of this.buildings) for (let j = b.y; j < b.y + b.h; j++) for (let i = b.x; i < b.x + b.w; i++) this.grid[j * N + i] = b.id;
       this.residents = d.residents; this.staff = d.staff; this.events = d.events; this.litter = d.litter;
       for (const k of ['funds', 'day', 'dayFrac', 'complaints', 'sat', 'shock', 'rank', 'hold', 'history', 'lowSatDays', 'patrol', 'nextId', 'stats'] as const) (this as any)[k] = d[k];
+      this.diff = d.diff ?? 'normal'; this.buffs = d.buffs ?? [];
+      for (const st of this.staff) { st.xp ??= 0; st.lv ??= 1; }
       this.state = 'play'; this.endReason = ''; this.speed = 1;
       this.computeScores(); this.updateSat();
       return true;
@@ -442,7 +500,7 @@ export class Game {
     const names = STAFF_NAMES[role];
     const s: Staff = {
       id: this.nextId++, role, name: names[used % names.length], x: 3.5, y: N - 0.5, path: [], dir: 1, anim: 0,
-      state: 'idle', task: null, workT: 0, workNeed: 0, think: 0.2, post: null, carried: false, status: '출근', idleT: 0,
+      state: 'idle', task: null, workT: 0, workNeed: 0, think: 0.2, post: null, carried: false, status: '출근', idleT: 0, xp: 0, lv: 1,
     };
     this.staff.push(s);
   }
@@ -502,7 +560,7 @@ export class Game {
     if (goal.b === undefined && goal.x === undefined) return false;
     const r = this.route(s, goal);
     if (!r) return false;
-    s.path = r.path; s.task = task; s.workT = 0; s.workNeed = need;
+    s.path = r.path; s.task = task; s.workT = 0; s.workNeed = need * (1 - 0.1 * (s.lv - 1));
     s.state = r.path.length ? 'walk' : 'work';
     if (task.k === 'event') { task.ev.worker = s.id; s.status = `${EV[task.ev.key].title} 처리`; }
     if (task.k === 'litter') { task.l.claim = s.id; s.status = '청소 중'; }
@@ -513,7 +571,7 @@ export class Game {
   private beginWalk(s: Staff, task: Task, tx: number, ty: number, label: string, need: number): boolean {
     const r = this.route(s, { x: tx, y: ty });
     if (!r) return false;
-    s.path = r.path; s.task = task; s.workT = 0; s.workNeed = need; s.status = label;
+    s.path = r.path; s.task = task; s.workT = 0; s.workNeed = need * (1 - 0.1 * (s.lv - 1)); s.status = label;
     s.state = r.path.length ? 'walk' : (task.k === 'return' ? 'idle' : 'work');
     if (task.k === 'return' && !r.path.length) s.task = null;
     return true;
@@ -577,7 +635,7 @@ export class Game {
       if (s.think <= 0) { s.think = 0.6; this.assign(s); }
     }
     if (s.state === 'walk') {
-      const arrived = this.moveEnt(s, 2.1, dt);
+      const arrived = this.moveEnt(s, 2.1 * (1 + 0.08 * (s.lv - 1)), dt);
       if (arrived || s.path.length === 0) {
         if (!s.task || s.task.k === 'return') { s.task = null; s.state = 'idle'; s.idleT = 0; }
         else { s.state = 'work'; s.workT = 0; }
@@ -590,6 +648,7 @@ export class Game {
   private finishTask(s: Staff) {
     const t = s.task!;
     s.task = null; s.state = 'idle'; s.idleT = 0; s.think = 0.2;
+    this.gainXp(s, { event: 12, litter: 2, maint: 4, visit: 3, patrol: 2, return: 0 }[t.k]);
     switch (t.k) {
       case 'event': {
         const ev = t.ev; const def = EV[ev.key];
@@ -654,16 +713,16 @@ export class Game {
   }
   private chooseDest(r: Resident) {
     const W: Record<Kind, [string, number][]> = {
-      adult: [['entrance', 3], ['parking', 3], ['recycle', 1], ['apt', 2], ['wander', 1], ['garden', 1]],
-      mom: [['playground', 4], ['recycle', 2], ['garden', 2], ['wander', 1], ['apt', 1], ['entrance', 1]],
+      adult: [['entrance', 3], ['parking', 3], ['recycle', 1], ['apt', 2], ['wander', 1], ['garden', 1], ['community', 2]],
+      mom: [['playground', 4], ['recycle', 2], ['garden', 2], ['wander', 1], ['apt', 1], ['entrance', 1], ['community', 2]],
       kid: [['playground', 6], ['garden', 1], ['wander', 3], ['tree', 1]],
-      elder: [['garden', 4], ['tree', 3], ['guard', 1], ['wander', 2], ['apt', 1]],
+      elder: [['garden', 4], ['tree', 3], ['guard', 1], ['wander', 2], ['apt', 1], ['community', 2]],
     };
     const opts = W[r.kind].filter(([k]) => ['entrance', 'wander', 'apt'].includes(k) || this.buildings.some(b => b.type === k));
     let tot = opts.reduce((s, o) => s + o[1], 0), x = Math.random() * tot, key = 'wander';
     for (const o of opts) { x -= o[1]; if (x <= 0) { key = o[0]; break; } }
     let res: { path: P[]; tile: P } | null = null;
-    const names: Record<string, string> = { entrance: '단지 밖으로 외출', parking: '주차장으로', recycle: '분리수거 하러', apt: '집으로', wander: '산책 중', garden: '화단 구경', tree: '나무 그늘로', playground: '놀이터로', guard: '경비실로' };
+    const names: Record<string, string> = { entrance: '단지 밖으로 외출', parking: '주차장으로', recycle: '분리수거 하러', apt: '집으로', wander: '산책 중', garden: '화단 구경', tree: '나무 그늘로', playground: '놀이터로', guard: '경비실로', community: '커뮤니티센터로' };
     if (key === 'entrance') res = this.route(r, { x: 3 + rint(0, 3), y: N - 1 }, true);
     else if (key === 'wander') { const t = this.randomWalkable(r.x, r.y, 6); if (t) res = this.route(r, t); }
     else if (key === 'apt') { const h = this.bById(r.home) ?? pick(this.buildings.filter(b => b.type === 'apt')); if (h) res = this.route(r, { b: h }, true); }
@@ -683,6 +742,7 @@ export class Game {
       else if (key === 'recycle') { if (S.clean < 0.6) { text = pick(PH.clean); neg = true; } else { text = pick(PH.cleanOk); } }
       else if (key === 'parking') { if (S.park < 0.8) { text = pick(PH.park); neg = true; } else text = pick(PH.parkOk); }
       else if (key === 'garden' || key === 'tree') { text = S.amen > 0.6 ? pick(PH.amenOk) : pick(PH.amen); neg = S.amen <= 0.6; }
+      else if (key === 'community') { text = pick(['헬스장 운동하고 가야지 💪', '독서실이 조용해서 좋아', '작은도서관 책 빌려가야지', '커뮤니티센터 최고!']); }
       else if (key === 'guard') { text = S.safety > 0.6 ? pick(PH.safetyOk) : pick(PH.safety); neg = S.safety <= 0.6; }
       if (text) this.say(r, text, neg);
     }
@@ -699,6 +759,13 @@ export class Game {
     if (this.events.some(e => e.key === 'snow')) c.push({ w: 3, t: '길이 빙판이라 미끄러워요!', neg: true });
     if (this.events.some(e => e.key === 'leaves')) c.push({ w: 2, t: '낙엽이 수북이 쌓였네', neg: true });
     if (this.events.some(e => e.key === 'trash')) c.push({ w: 3, t: '분리수거장이 넘쳐요!', neg: true });
+    if (this.events.some(e => e.key === 'blackout')) c.push({ w: 5, t: '정전이에요! 냉장고 다 녹겠네', neg: true });
+    if (this.events.some(e => e.key === 'leak')) c.push({ w: 4, t: '천장에서 물이 새요!', neg: true });
+    if (this.events.some(e => e.key === 'parcel')) c.push({ w: 3, t: '택배가 없어졌어요. 경비실 CCTV 좀 봐주세요', neg: true });
+    if (this.events.some(e => e.key === 'council')) c.push({ w: 3, t: '주민회의에서 따져야겠어', neg: true });
+    if (this.events.some(e => e.key === 'typhoon')) c.push({ w: 3, t: '태풍에 낙하물 위험해요!', neg: true });
+    if (this.events.some(e => e.key === 'drill')) c.push({ w: 2, t: '소방훈련… 귀찮지만 해야지', neg: false });
+    if (this.rainy) c.push({ w: 2, t: pick(['비 오는 날엔 파전이지', '우산 챙길 걸…', '빗소리 좋다']), neg: false });
     if (this.events.some(e => e.key === 'pest')) c.push({ w: 2, t: '모기가 너무 많아요', neg: true });
     if (S.park < 0.8) c.push({ w: (1 - S.park) * 8, t: pick(PH.park), neg: true });
     if (S.clean < 0.7) c.push({ w: (1 - S.clean) * 8, t: pick(PH.clean), neg: true });
@@ -748,6 +815,7 @@ export class Game {
       pen += (1.2 + 5 * frac * frac) * (e.bid && e.bid === r.home ? 2 : 1);
     }
     v -= Math.min(30, pen) + this.shock;
+    v += this.buffs.reduce((a, b) => a + b.sat, 0);
     return clamp(v + r.off, 0, 100);
   }
   private updateResident(r: Resident, dt: number) {
@@ -782,6 +850,7 @@ export class Game {
     const demand = Math.ceil(hh * 0.45);
     const pgW = this.buildings.reduce((s, b) => s + (b.type === 'playground' ? (b.level === 2 ? 1.6 : 1) : 0), 0);
     const landW = this.count('garden') + 1.5 * this.count('tree');
+    const commW = this.buildings.reduce((a, b) => a + (b.type === 'community' ? (b.level === 2 ? 1.5 : 1) : 0), 0);
     const pg = clamp(pgW / Math.max(0.5, hh / 50), 0, 1);
     const land = clamp(landW / Math.max(2, hh / 6), 0, 1);
     const hasMgr = this.staff.some(s => s.role === 'manager');
@@ -789,8 +858,8 @@ export class Game {
       clean: clamp(1 - this.litter.length / (8 + hh * 0.2), 0, 1),
       facility: clamp(avgHp / 100 - 0.12 * broken, 0, 1),
       park: demand ? clamp((parkCap + 6) / demand, 0, 1) : 1,
-      safety: clamp(0.2 + 0.22 * Math.min(posts, 2) + 0.18 * Math.min(guards, 3) + this.patrol, 0, 1),
-      amen: 0.45 * pg + 0.55 * land,
+      safety: clamp(0.2 + 0.22 * Math.min(posts, 2) + 0.18 * Math.min(guards, 3) + this.patrol + 0.07 * Math.min(4, this.count('cctv')), 0, 1),
+      amen: Math.min(1, 0.45 * pg + 0.55 * land + 0.2 * clamp(commW / Math.max(0.5, hh / 70), 0, 1)),
       service: clamp((hasMgr ? 1 : 0.55) * (1 - this.complaints / 160), 0, 1),
       litterN: this.litter.length, parkCap, demand, guards, posts, broken, avgHp, pg, land, hasMgr,
     };
@@ -858,7 +927,7 @@ export class Game {
     const def = EV[ev.key];
     this.removeEvent(ev);
     def.onClose?.(this, ev, false);
-    this.complaints += def.fail; this.shock += def.fail * 0.6; this.stats.failed++;
+    const fl = def.fail * DIFFS[this.diff].fail; this.complaints += fl; this.shock += fl * 0.6; this.stats.failed++;
     this.toast(`❌ '${def.title}' 기한 초과! 민원 폭발 +${def.fail}`, 'bad');
     this.computeScores();
   }
@@ -892,8 +961,8 @@ export class Game {
     this.scoreT -= dt;
     if (this.scoreT <= 0) { this.scoreT = 0.5; this.computeScores(); }
     this.updateSat();
-    this.income = hh * FEE_PER_HH * (0.75 + 0.25 * this.sat / 100);
-    this.expense = this.buildings.reduce((s, b) => s + BDEFS[b.type].upkeep, 0) + this.staff.reduce((s, x) => s + ROLES[x.role].salary, 0);
+    this.income = this.monthlyIncome(hh);
+    this.expense = this.buildings.reduce((s, b) => s + BDEFS[b.type].upkeep, 0) + this.staff.reduce((s, x) => s + this.salaryOf(x), 0);
     // 게임오버 조건
     if (this.complaints >= 100) this.end('fired', '민원 게이지가 폭발했습니다. 입주자대표회의가 관리소장 해임을 의결했어요.');
   }
@@ -920,13 +989,15 @@ export class Game {
     if (this.staff.some(s => s.role === 'manager')) this.complaints -= 0.3;
     this.complaints = clamp(this.complaints, 0, 100);
     this.shock = Math.max(0, this.shock - 0.5);
+    this.buffs = this.buffs.map(b => ({ ...b, days: b.days - 1 })).filter(b => b.days > 0);
+    this.rainy = Math.random() < [0.2, 0.35, 0.15, 0][this.season];
     this.patrol *= 0.9;
     // 낮은 만족도 지속
     if (ds < 20) this.lowSatDays++; else this.lowSatDays = 0;
     if (this.lowSatDays >= 15) { this.end('fired', '입주민 만족도가 바닥에서 벗어나지 못했습니다. 관리소장 해임!'); return; }
     // 이벤트 발생
     if (this.day >= 5) {
-      const p = 0.14 + Math.min(0.2, this.households() / 450);
+      const p = (0.14 + Math.min(0.2, this.households() / 450)) * DIFFS[this.diff].ev;
       if (Math.random() < p) this.spawnEvent();
     }
     // 월 정산 & 계절
@@ -937,20 +1008,62 @@ export class Game {
   }
   private settleMonth(prevSeason: number) {
     const hh = this.households();
-    const income = Math.round(hh * FEE_PER_HH * (0.75 + 0.25 * this.sat / 100));
+    const income = Math.round(this.monthlyIncome(hh));
     const upkeep = this.buildings.reduce((s, b) => s + BDEFS[b.type].upkeep, 0);
-    const salary = this.staff.reduce((s, x) => s + ROLES[x.role].salary, 0);
+    const salary = this.staff.reduce((s, x) => s + this.salaryOf(x), 0);
     const net = income - upkeep - salary;
     this.funds += net;
     const mi = this.monthIdx - 1;
     this.history.unshift({ label: `${monthNumber(mi)}월`, income, upkeep, salary, net, sat: Math.round(this.sat) });
     if (this.history.length > 12) this.history.pop();
     this.toast(`💰 ${monthNumber(mi)}월 정산: 수입 ${fmt(income)} - 지출 ${fmt(upkeep + salary)} = ${net >= 0 ? '+' : ''}${fmt(net)}만원`, net >= 0 ? 'good' : 'bad');
+    if (mi % 12 === 11) {
+      const ins = Math.round(100 + hh * 2); this.funds -= ins;
+      this.toast(`🧾 연간 법정 점검(승강기·소방·전기) 비용 ${fmt(ins)}만원이 지출됐어요`, 'warn');
+    }
+    if (this.monthIdx >= 2 && !this.proposal && Math.random() < 0.55) this.makeProposal();
     if (this.funds < -2000) { this.end('fired', '관리비 적자가 누적되어 단지 재정이 파탄났습니다. 관리소장 해임!'); return; }
     if (this.season !== prevSeason) {
       const msg = ['🌸 봄이 왔어요. 해충 방역 철입니다.', '☀️ 여름입니다. 예초 작업과 폭염에 대비하세요!', '🍁 가을이에요. 낙엽 청소가 늘어납니다.', '❄️ 겨울입니다! 동파와 빙판길을 조심하세요.'][this.season];
       this.toast(msg, 'info');
     }
+  }
+  // ───────── 주민 제안(선택형 이벤트) ─────────
+  private makeProposal() {
+    const buff = (sat: number, fee: number, days: number, label: string) => () => { this.buffs.push({ sat, fee, days, label }); };
+    const list: NonNullable<Game['proposal']>[] = [
+      { title: '놀이터 안전매트 교체 요청', desc: '어린이집 학부모들이 놀이터 바닥이 낡아 위험하다며 교체를 요청했어요.', options: [
+        { label: '교체해 드린다', cost: 300, tip: '만족도 +6% (40일)', fn: buff(6, 0, 40, '안전매트 교체') },
+        { label: '다음 예산에 반영', cost: 0, tip: '민원 게이지 +5', fn: () => { this.complaints += 5; } } ] },
+      { title: 'CCTV·보안등 확충 요구', desc: '최근 단지 주변 침입 소문으로 입주민들이 CCTV와 보안등 추가를 요구합니다.', options: [
+        { label: '즉시 설치', cost: 200, tip: '치안 보너스 + 만족도 +4% (40일)', fn: () => { this.patrol = Math.min(0.2, this.patrol + 0.12); this.buffs.push({ sat: 4, fee: 0, days: 40, label: '보안 강화' }); } },
+        { label: '예산 부족을 설명', cost: 0, tip: '신뢰도 하락 (패널티 +4)', fn: () => { this.shock += 4; } } ] },
+      { title: '관리비 인상 제안', desc: '물가 상승으로 관리 용역비가 올랐어요. 관리비를 올릴지 입주자대표회의가 묻습니다.', options: [
+        { label: '인상 수락', cost: 0, tip: '관리비 +10% (60일), 만족도 -4%', fn: buff(-4, 0.1, 60, '관리비 인상') },
+        { label: '설득 간담회 (소규모 인상)', cost: 80, tip: '관리비 +5% (60일), 만족도 -1%', fn: buff(-1, 0.05, 60, '소폭 인상') },
+        { label: '동결 유지', cost: 0, tip: '변화 없음', fn: () => {} } ] },
+      { title: '경로당 어르신 행사 지원 요청', desc: '경로당에서 어버이날 행사 비용 지원을 요청해 왔어요.', options: [
+        { label: '지원한다', cost: 250, tip: '만족도 +5% (40일)', fn: buff(5, 0, 40, '경로당 지원') },
+        { label: '정중히 거절', cost: 0, tip: '민원 게이지 +4', fn: () => { this.complaints += 4; } } ] },
+      { title: '입주민 장터(벼룩시장) 개최', desc: '부녀회가 단지 안에서 벼룩시장을 열고 싶어 해요.', options: [
+        { label: '장소·텐트 지원', cost: 150, tip: '만족도 +5% (20일), 민원 -5', fn: () => { this.complaints = Math.max(0, this.complaints - 5); this.buffs.push({ sat: 5, fee: 0, days: 20, label: '벼룩시장' }); } },
+        { label: '이번엔 미룬다', cost: 0, tip: '변화 없음', fn: () => {} } ] },
+      { title: '주차 단속 강화 요청', desc: '이중주차와 불법주차 때문에 불편하다며 단속을 강화해 달라는 요청이에요.', options: [
+        { label: '단속 강화 안내', cost: 0, tip: '민원 -3, 만족도 -1% (30일)', fn: () => { this.complaints = Math.max(0, this.complaints - 3); this.buffs.push({ sat: -1, fee: 0, days: 30, label: '단속 강화' }); } },
+        { label: '유예 기간 부여', cost: 0, tip: '민원 게이지 +3', fn: () => { this.complaints += 3; } } ] },
+    ];
+    this.proposal = pick(list);
+    this.propSpeed = this.speed || 1; this.speed = 0;
+    this.toast('📝 입주민 제안이 도착했어요!', 'warn');
+  }
+  resolveProposal(i: number) {
+    const pr = this.proposal; if (!pr) return;
+    const o = pr.options[i]; if (!o) return;
+    if (this.funds < o.cost) { this.toast('자금이 부족해요', 'warn'); return; }
+    this.funds -= o.cost; o.fn();
+    this.proposal = null; this.speed = this.state === 'play' ? this.propSpeed : 0;
+    this.toast(`📝 '${o.label}' 선택 → ${o.tip}`, 'info');
+    this.computeScores();
   }
   private progressRank() {
     if (this.rank >= RANKS.length - 1) return;

@@ -9,7 +9,7 @@ export const POST_R = 6; // 직원 배치 구역 반경(타일)
 export const SEASON_NAMES = ['봄', '여름', '가을', '겨울'];
 export const SEASON_ICON = ['🌸', '☀️', '🍁', '❄️'];
 
-export type BType = 'apt' | 'office' | 'guard' | 'parking' | 'playground' | 'recycle' | 'garden' | 'tree';
+export type BType = 'apt' | 'office' | 'guard' | 'parking' | 'playground' | 'recycle' | 'garden' | 'tree' | 'community' | 'cctv';
 
 export interface BDef {
   key: BType;
@@ -33,10 +33,12 @@ export const BDEFS: Record<BType, BDef> = {
   playground: { key: 'playground', name: '놀이터', icon: '🛝', w: 2, h: 2, cost: 700, upkeep: 15, maxLevel: 2, up: [900], desc: '아이·엄마 입주민의 만족도를 크게 올립니다.', buildable: true },
   recycle: { key: 'recycle', name: '분리수거장', icon: '♻️', w: 2, h: 1, cost: 400, upkeep: 10, maxLevel: 2, up: [500], desc: '쓰레기 발생을 줄여줍니다. 자주 치워주세요.', buildable: true },
   garden: { key: 'garden', name: '화단', icon: '🌷', w: 1, h: 1, cost: 60, upkeep: 2, maxLevel: 1, up: [], desc: '계절마다 꽃이 피는 작은 화단. 조경 점수 +1', buildable: true },
+  community: { key: 'community', name: '커뮤니티센터', icon: '🏋️', w: 3, h: 2, cost: 2600, upkeep: 70, maxLevel: 2, up: [2800], desc: '헬스장·독서실·작은도서관. 입주민 편의(조경·놀이 점수)를 크게 올려요 (Lv2는 +50%)', buildable: true },
+  cctv: { key: 'cctv', name: 'CCTV·보안등', icon: '📹', w: 1, h: 1, cost: 250, upkeep: 5, maxLevel: 1, up: [], desc: '치안 점수 +0.07 (최대 4개까지 반영). 밤에는 가로등이 켜져요', buildable: true },
   tree: { key: 'tree', name: '조경수', icon: '🌳', w: 1, h: 1, cost: 100, upkeep: 3, maxLevel: 1, up: [], desc: '계절마다 색이 바뀌는 나무. 조경 점수 +1.5', buildable: true },
 };
 
-export const BUILD_ORDER: BType[] = ['apt', 'parking', 'playground', 'recycle', 'guard', 'garden', 'tree'];
+export const BUILD_ORDER: BType[] = ['apt', 'parking', 'playground', 'recycle', 'guard', 'cctv', 'garden', 'tree', 'community'];
 
 export type Role = 'manager' | 'tech' | 'guard' | 'cleaner';
 export interface RoleDef {
@@ -79,3 +81,12 @@ export const RANKS = [
   { title: '단지 총괄소장', need: 4, days: 40, minSat: 75 },
   { title: '명품 5성 단지 소장', need: 5, days: 60, minSat: 85 },
 ];
+
+export type Diff = 'easy' | 'normal' | 'hard';
+export const DIFFS: Record<Diff, { name: string; funds: number; fee: number; ev: number; fail: number; desc: string }> = {
+  easy: { name: '쉬움', funds: 4000, fee: 1.2, ev: 0.8, fail: 0.8, desc: '시작 자금 4,000 · 관리비 +20% · 민원 적게' },
+  normal: { name: '보통', funds: 2500, fee: 1, ev: 1, fail: 1, desc: '시작 자금 2,500 · 기본 규칙' },
+  hard: { name: '어려움', funds: 1800, fee: 0.9, ev: 1.35, fail: 1.3, desc: '시작 자금 1,800 · 관리비 -10% · 민원 많고 패널티 큼' },
+};
+export const MAX_LV = 5;
+export const xpNeed = (lv: number) => lv * 40;
