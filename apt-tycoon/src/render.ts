@@ -10,6 +10,7 @@ export interface View {
   carrying: Staff | null;
   mouse: { x: number; y: number };
   placeStaff: Staff | null;
+  moveB: Building | null;
   ghostOk: boolean;
 }
 
@@ -454,6 +455,13 @@ export class Renderer {
 
   // ───────── 고스트/파티클 ─────────
   private drawGhost(c: Ctx, g: Game, v: View, season: number, nA: number, t: number) {
+    if (v.moveB && v.hover) {
+      const b = v.moveB; const w = v.rot ? b.h : b.w, h = v.rot ? b.w : b.h; const hx = v.hover.x, hy = v.hover.y;
+      poly(c, [px(b.x, b.y), px(b.x + b.w, b.y), px(b.x + b.w, b.y + b.h), px(b.x, b.y + b.h)], 'rgba(255,230,90,.35)', '#ffe45a');
+      if (hx >= 0 && hy >= 0 && hx + w <= N && hy + h <= N) this.drawBuilding(c, { ...b, x: hx, y: hy, w, h }, g, season, nA, t, 0.7);
+      poly(c, [px(hx, hy), px(hx + w, hy), px(hx + w, hy + h), px(hx, hy + h)], v.ghostOk ? 'rgba(80,255,120,.35)' : 'rgba(255,70,60,.4)', v.ghostOk ? '#7dff9a' : '#ff6a5a');
+      return;
+    }
     if (v.tool && v.tool !== 'demolish' && v.hover) {
       const d = BDEFS[v.tool]; const w = v.rot ? d.h : d.w, h = v.rot ? d.w : d.h;
       const hx = v.hover.x, hy = v.hover.y;

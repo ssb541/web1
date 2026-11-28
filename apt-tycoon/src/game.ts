@@ -362,6 +362,30 @@ export class Game {
     if (!free) { this.afterMapChange(); this.toast(`${d.name} 건설 완료!`, 'good'); }
     return b;
   }
+  moveFee(b: Building) { return b.type === 'office' ? 100 : Math.round(BDEFS[b.type].cost * 0.1); }
+  canMove(b: Building, x: number, y: number, w: number, h: number): { ok: boolean; why: string } {
+    const idx = this.buildings.indexOf(b); if (idx < 0) return { ok: false, why: '건물이 없어요' };
+    const setGrid = (v: number) => { for (let j = b.y; j < b.y + b.h; j++) for (let i = b.x; i < b.x + b.w; i++) this.grid[j * N + i] = v; };
+    this.buildings.splice(idx, 1); setGrid(0);
+    const r = this.canPlace(b.type, x, y, w, h, true);
+    this.buildings.splice(idx, 0, b); setGrid(b.id);
+    return r;
+  }
+  moveBuilding(b: Building, x: number, y: number, w: number, h: number): boolean {
+    const c = this.canMove(b, x, y, w, h);
+    if (!c.ok) { this.toast(c.why, 'warn'); return false; }
+    if (x === b.x && y === b.y && w === b.w && h === b.h) return false;
+    const fee = this.moveFee(b);
+    if (this.funds < fee) { this.toast(`이전 비용이 부족해요 (${fee}만원)`, 'warn'); return false; }
+    for (let j = b.y; j < b.y + b.h; j++) for (let i = b.x; i < b.x + b.w; i++) this.grid[j * N + i] = 0;
+    b.x = x; b.y = y; b.w = w; b.h = h;
+    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) this.grid[j * N + i] = b.id;
+    this.funds -= fee;
+    for (const ev of this.events) if (ev.bid === b.id) { ev.x = Math.floor(b.x + b.w / 2); ev.y = Math.floor(b.y + b.h / 2); }
+    this.afterMapChange();
+    this.toast(`${BDEFS[b.type].name} 이전 완료 (수수료 ${fee}만원)`, 'good');
+    return true;
+  }
   upgrade(b: Building) {
     const d = BDEFS[b.type];
     if (b.level >= d.maxLevel) return;

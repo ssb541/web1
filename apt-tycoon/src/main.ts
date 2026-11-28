@@ -9,7 +9,7 @@ let g = new Game();
 const renderer = new Renderer($('world') as HTMLCanvasElement, $('over') as HTMLCanvasElement);
 const view: View = {
   camX: 16, camY: 150, S: window.innerWidth < 700 ? 1 : 2, hover: null, tool: null, rot: false,
-  selected: null, carrying: null, mouse: { x: 0, y: 0 }, placeStaff: null, ghostOk: false,
+  selected: null, carrying: null, mouse: { x: 0, y: 0 }, placeStaff: null, moveB: null, ghostOk: false,
 };
 let started = false;
 
@@ -65,7 +65,7 @@ function refreshToolbar() {
   }
 }
 function setTool(t: BType | 'demolish' | null) {
-  view.tool = t; view.placeStaff = null; view.rot = false;
+  view.tool = t; view.placeStaff = null; view.moveB = null; view.rot = false;
   if (t) view.selected = null;
   updateGhost(); refreshToolbar();
 }
@@ -83,6 +83,11 @@ function anchorFor(tool: BType, tx: number, ty: number) {
 }
 function updateGhost() {
   const m = view.mouse; const t = tileAt(m.x, m.y);
+  if (view.moveB) {
+    const b = view.moveB; const w = view.rot ? b.h : b.w, h = view.rot ? b.w : b.h;
+    const ax = t.x - Math.floor((w - 1) / 2), ay = t.y - Math.floor((h - 1) / 2);
+    view.hover = { x: ax, y: ay }; view.ghostOk = g.canMove(b, ax, ay, w, h).ok && g.funds >= g.moveFee(b); return;
+  }
   if (view.tool && view.tool !== 'demolish') {
     const a = anchorFor(view.tool, t.x, t.y);
     view.hover = { x: a.x, y: a.y };
@@ -95,7 +100,7 @@ canvas.addEventListener('pointerdown', e => {
   if (!started) return;
   canvas.setPointerCapture(e.pointerId);
   view.mouse = { x: e.clientX, y: e.clientY };
-  if (e.button === 2) { if (view.tool || view.placeStaff) { setTool(null); } }
+  if (e.button === 2) { if (view.tool || view.placeStaff || view.moveB) { setTool(null); } }
   let staff: Staff | null = null;
   if (e.button === 0 && !view.tool && !view.placeStaff) {
     const h = renderer.hit(g, e.clientX, e.clientY);
@@ -146,6 +151,12 @@ function endPointer(e: PointerEvent, cancel: boolean) {
   }
   if (d.moved || d.button !== 0) return;
   // 클릭
+  if (view.moveB) {
+    const b = view.moveB; const w = view.rot ? b.h : b.w, h = view.rot ? b.w : b.h;
+    const ax = t.x - Math.floor((w - 1) / 2), ay = t.y - Math.floor((h - 1) / 2);
+    if (g.moveBuilding(b, ax, ay, w, h)) { view.moveB = null; view.rot = false; infoSig = ''; }
+    updateGhost(); return;
+  }
   if (view.placeStaff) {
     const s = view.placeStaff; view.placeStaff = null; g.dropStaff(s, t.x, t.y);
     toast(`${s.name}을(를) 이 구역에 배치했어요`, 'good'); return;
@@ -179,7 +190,7 @@ window.addEventListener('keydown', e => {
   if (!started) return;
   if (k === ' ') { e.preventDefault(); setSpeed(g.speed === 0 ? 1 : 0); }
   else if (k === '1' || k === '2' || k === '3') setSpeed(Number(k));
-  else if (k === 'escape') { setTool(null); view.selected = null; view.placeStaff = null; }
+  else if (k === 'escape') { setTool(null); view.moveB = null; view.selected = null; view.placeStaff = null; }
   else if (k === 'r') { view.rot = !view.rot; updateGhost(); }
   else if (k === '+' || k === '=') setZoom(view.S + 1);
   else if (k === '-' || k === '_') setZoom(view.S - 1);
@@ -292,7 +303,7 @@ function renderInfo() {
       if (b.type !== 'garden' && b.type !== 'tree') html += `<div class="row"><span class="lb">정비도</span><div class="bar"><i data-bar="bhp"></i></div><span class="v" data-live="bhpt"></span></div>`;
       if (b.type === 'apt') html += `<div class="evd">입주 <b data-live="bocc"></b> / ${APT_HH[b.level]}세대</div>`;
       if (b.type === 'office') html += `<div class="evd">직원 정원 ${g.staffCap()}명</div>`;
-      html += `<div class="evb">`;
+      html += `<div class="evb"><button class="warn" data-act="movebuilding" data-v="${b.id}">🚚 위치 이동 (${g.moveFee(b)}만원)</button>`;
       if (b.level < d.maxLevel) html += `<button class="${g.funds >= upc ? 'good' : 'poor'}" data-act="upgrade" data-v="${b.id}">⬆ 업그레이드 (${fmt(upc)}만원)</button>`;
       if (b.type !== 'office') html += `<button class="bad" data-act="demo" data-v="${b.id}">🔨 철거 (+${fmt(d.cost * 0.5)})</button>`;
       html += `</div>`;
@@ -409,6 +420,7 @@ document.addEventListener('click', e => {
     case 'upgrade': { const b = g.bById(Number(v)); if (b) g.upgrade(b); infoSig = ''; break; }
     case 'demo': { const b = g.bById(Number(v)); if (b) { g.demolish(b); view.selected = null; } break; }
     case 'fire': { const s = g.staff.find(x => x.id === Number(v)); if (!s) break; if (fireArm === s.id) { fireArm = 0; g.fire(s); view.selected = null; lastSig = ''; } else { fireArm = s.id; fireArmT = performance.now(); } infoSig = ''; break; }
+    case 'movebuilding': { const b = g.bById(Number(v)); if (b) { view.tool = null; view.placeStaff = null; view.moveB = b; view.rot = false; refreshToolbar(); updateGhost(); toast('옮길 위치를 클릭하세요 (R 회전, 우클릭/Esc 취소)', 'info'); } break; }
     case 'hintx': hintDismissed = $('hint-t').textContent ?? ''; updateHint(); break;
     case 'save': saveGame(true); break;
     case 'load': loadGame(); break;
