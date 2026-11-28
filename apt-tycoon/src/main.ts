@@ -424,27 +424,33 @@ function restart() {
 
 // ───────── 메인 루프 ─────────
 let last = performance.now(), uiT = 0, endShown = false;
+let errShown = 0;
+function fail(where: string, e: unknown) {
+  console.error(where, e);
+  if (errShown++ < 3) toast(`⚠️ 오류(${where}): ${(e as Error)?.message ?? e}`, 'bad');
+}
 function frame(now: number) {
+  requestAnimationFrame(frame); // 예외가 나도 루프가 죽지 않도록 가장 먼저 예약
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (started) {
-    // 키보드 팬
-    const sp = 260 / view.S * dt * 2;
-    if (keys.has('w') || keys.has('arrowup')) view.camY -= sp;
-    if (keys.has('s') || keys.has('arrowdown')) view.camY += sp;
-    if (keys.has('a') || keys.has('arrowleft')) view.camX -= sp;
-    if (keys.has('d') || keys.has('arrowright')) view.camX += sp;
-    clampCam();
-    g.update(dt);
-    if (g.state !== 'play' && !endShown) { endShown = true; endModal(); }
-    if (g.state === 'play') endShown = false;
+    try {
+      const sp = 260 / view.S * dt * 2;
+      if (keys.has('w') || keys.has('arrowup')) view.camY -= sp;
+      if (keys.has('s') || keys.has('arrowdown')) view.camY += sp;
+      if (keys.has('a') || keys.has('arrowleft')) view.camX -= sp;
+      if (keys.has('d') || keys.has('arrowright')) view.camX += sp;
+      clampCam();
+      g.update(dt);
+      if (g.state !== 'play' && !endShown) { endShown = true; endModal(); }
+      if (g.state === 'play') endShown = false;
+    } catch (e) { fail('시뮬레이션', e); }
   }
-  renderer.draw(g, view, dt);
+  try { renderer.draw(g, view, dt); } catch (e) { fail('그리기', e); }
   uiT -= dt;
   if (uiT <= 0) {
     uiT = 0.12;
-    hud(); refreshToolbar(); renderSide(); renderInfo(); live();
+    try { hud(); refreshToolbar(); renderSide(); renderInfo(); live(); } catch (e) { fail('화면', e); lastSig = ''; infoSig = ''; }
   }
-  requestAnimationFrame(frame);
 }
 buildTabs(); renderSide(); refreshToolbar(); hud();
 showTitle();
