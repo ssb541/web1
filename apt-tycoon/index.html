@@ -69,6 +69,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}
 td,th{padding:3px 4px;border-bottom:1px solid #1a2634;text-align:right}th{color:var(--dim);font-weight:400}td:first-child,th:first-child{text-align:left}
 .badge{display:inline-block;padding:0 5px;border-radius:2px;background:#162230;border:1px solid #000;font-size:11px;margin-right:3px}
 .red{color:#ff9b8c}.grn{color:#8be3a2}
+#hint{position:fixed;left:8px;bottom:calc(var(--tbh,76px) + 20px);max-width:min(420px,calc(100vw - 16px));padding:8px 10px;display:flex;gap:8px;align-items:flex-start;z-index:4;border-left:4px solid var(--gold);font-weight:600;line-height:1.4}
+#hint button{padding:0 6px;flex:none}
 #toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--hudh) + 10px);display:flex;flex-direction:column;gap:5px;align-items:center;z-index:8;pointer-events:none;width:min(520px,calc(100vw - 20px))}
 .toast{padding:6px 12px;border:2px solid var(--edge);border-radius:3px;background:#243241;font-weight:600;box-shadow:0 3px 0 rgba(0,0,0,.35);animation:tin .2s ease-out;text-align:center}
 .toast.good{background:#255a3a}.toast.bad{background:#7a2a22}.toast.warn{background:#6a4f16}
@@ -85,7 +87,7 @@ kbd{background:#0c141c;border:1px solid #000;border-radius:2px;padding:0 4px;fon
 @media (max-width:820px){
   :root{--hudh:84px}
   #hud{gap:4px;padding:4px 6px}
-  #chip-inc,#h-hour,#h-rank{display:none}
+  #h-incexp,#h-hour,#h-rank{display:none}
   .chip{padding:2px 6px;min-height:26px;font-size:12px}.chip b{font-size:12.5px}
   .gauge{width:54px}
   #side{left:0;right:0;width:auto;top:auto;bottom:calc(var(--tbh,76px) + 8px);max-height:46vh;border-radius:4px 4px 0 0}
@@ -94,6 +96,7 @@ kbd{background:#0c141c;border:1px solid #000;border-radius:2px;padding:0 4px;fon
   #side{max-height:calc(100vh - var(--hudh) - var(--tbh,76px) - 20px)}
   .tb{min-width:56px}
   #toasts{top:calc(var(--hudh) + 4px)}
+  #hint{left:6px;right:6px;max-width:none;bottom:calc(var(--tbh,76px) + 52px)}
 }
 </style>
 </head>
@@ -103,7 +106,7 @@ kbd{background:#0c141c;border:1px solid #000;border-radius:2px;padding:0 4px;fon
 
 <div id="hud">
   <div class="chip" title="보유 자금">💰 <b id="h-funds">0</b><small>만원</small></div>
-  <div class="chip" id="chip-inc" title="이번 달 예상 수입 / 지출 (매월 말 정산)">📈 <b class="pos" id="h-inc">+0</b><small>/</small><b class="neg" id="h-exp">-0</b></div>
+  <div class="chip" id="chip-inc" title="월말 정산까지 남은 일수와 예상 순익 (예상 수입 − 예상 지출)">📈 <small>정산 D-<b id="h-dday">0</b></small> <b id="h-net">0</b><small id="h-incexp"></small></div>
   <div class="chip" title="입주민 만족도">😊 <div class="gauge"><i id="h-satbar"></i></div><b id="h-sat">0%</b></div>
   <div class="chip" title="민원 게이지 - 100%가 되면 해임됩니다">📢 <div class="gauge"><i id="h-cmpbar"></i></div><b id="h-cmp">0%</b></div>
   <div class="chip" title="날짜 / 계절"><b id="h-date"></b><span id="h-season"></span><small id="h-hour"></small></div>
@@ -125,6 +128,7 @@ kbd{background:#0c141c;border:1px solid #000;border-radius:2px;padding:0 4px;fon
 <div id="info" class="panel hidden"></div>
 <div id="side" class="panel"><div id="tabs"></div><div id="sidebody"></div></div>
 <div id="toolbar" class="panel"></div>
+<div id="hint" class="panel hidden"><span id="hint-t"></span><button data-act="hintx" title="이 안내 닫기">✕</button></div>
 <div id="toasts"></div>
 <div id="modal"></div>
 <script type="module" src="/src/main.ts"></script>

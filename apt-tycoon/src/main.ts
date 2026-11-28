@@ -345,7 +345,10 @@ function hud() {
   const set = (id: string, v: string) => { const e = $(id); if (e.textContent !== v) e.textContent = v; };
   set('h-funds', fmt(g.funds));
   const fe = $('h-funds'); fe.style.color = g.funds < 0 ? '#ff6a5a' : '';
-  set('h-inc', '+' + fmt(g.income)); set('h-exp', '-' + fmt(g.expense));
+  const net = Math.round(g.income - g.expense);
+  set('h-dday', String(31 - g.dayOfMonth)); set('h-net', (net >= 0 ? '+' : '') + fmt(net));
+  $('h-net').className = net >= 0 ? 'pos' : 'neg';
+  set('h-incexp', `(수입 ${fmt(g.income)} / 지출 ${fmt(g.expense)})`);
   const sat = Math.round(g.sat); set('h-sat', sat + '%');
   const sb = $('h-satbar'); sb.style.width = sat + '%'; sb.style.background = sat > 66 ? '#5fd47e' : sat > 40 ? '#ffb23f' : '#ff6a5a';
   const cp = Math.round(g.complaints); set('h-cmp', cp + '%');
@@ -357,6 +360,34 @@ function hud() {
   set('stars', '★'.repeat(g.stars) + '☆'.repeat(5 - g.stars));
   set('h-rank', RANKS[g.rank].title);
   for (const b of Array.from(document.querySelectorAll<HTMLElement>('#speed button'))) b.classList.toggle('on', Number(b.dataset.v) === g.speed);
+}
+
+// ───────── 초반 안내 힌트 ─────────
+let hintDismissed = '';
+function hintText(): string {
+  const S = g.scores; const apts = g.count('apt');
+  const free = g.capacity() - g.households() <= 4;
+  const open = g.events.filter(e => !e.worker);
+  const day = 31 - g.dayOfMonth, net = Math.round(g.income - g.expense);
+  if (g.funds < 0) return '🚨 자금이 마이너스예요! 직원이 민원 처리비를 못 내고 있어요. 직원 월급이 부담이면 해고하거나 시설 철거로 환급받으세요.';
+  if (g.funds < 500) return `💰 자금이 부족해요. 월말 정산(D-${day})에 ${net >= 0 ? '+' : ''}${fmt(net)}만원 들어올 예정이에요. 그때까지 큰 지출은 피하세요.`;
+  if (g.complaints > 70) return '📢 민원 게이지가 위험해요! 📢 민원 탭에서 급한 민원을 외주로 해결하세요.';
+  if (open.length) return `📢 민원 ${open.length}건 대기 중! 직원을 드래그해서 민원 마커 위에 놓으면 바로 처리합니다. (담당 직무 확인)`;
+  if (apts <= 2 && free && g.funds >= 1800 + 500) return '🏢 입주 세대가 가득 찼어요. 돈을 벌려면 세대를 늘려야 해요 → 아래 건설 메뉴에서 "아파트 동" 건설! (직원은 늘리지 마세요)';
+  if (g.day < 10) return `💡 수입은 월말에 한꺼번에 정산돼요 (D-${day}, 예상 ${net >= 0 ? '+' : ''}${fmt(net)}만원). 그 전엔 자금이 안 늘어요. 먼저 동네를 둘러보세요!`;
+  if (!S.hasMgr && g.funds > 600) return '📋 관리주임이 없으면 층간소음 민원을 처리할 수 없어요. 👷 직원 탭에서 채용하세요.';
+  if (g.sat < 50) return '😟 입주민 만족도가 낮아요. 📊 현황 탭에서 낮은 항목(주차·청결·조경 등)을 확인하세요. 만족도 55% 미만이면 새 입주가 멈춰요.';
+  if (S.park < 0.6) return '🅿️ 주차 공간이 부족해요. 주차장을 지으면 만족도가 올라요.';
+  if (S.amen < 0.5) return '🌳 놀이터·화단·조경수를 늘리면 만족도가 올라요.';
+  if (free && g.funds >= 2300) return '🏢 입주가 가득 찼어요. 아파트 동을 더 짓거나 기존 동을 업그레이드하면 관리비 수입이 늘어요.';
+  return '';
+}
+function updateHint() {
+  const el = $('hint'); const t = started && g.state === 'play' ? hintText() : '';
+  const mobile = window.innerWidth < 820;
+  const show = !!t && t !== hintDismissed && !(mobile && !sideCollapsed);
+  el.classList.toggle('hidden', !show);
+  if (show && $('hint-t').textContent !== t) $('hint-t').textContent = t;
 }
 
 // ───────── 클릭 위임 ─────────
@@ -378,6 +409,7 @@ document.addEventListener('click', e => {
     case 'upgrade': { const b = g.bById(Number(v)); if (b) g.upgrade(b); infoSig = ''; break; }
     case 'demo': { const b = g.bById(Number(v)); if (b) { g.demolish(b); view.selected = null; } break; }
     case 'fire': { const s = g.staff.find(x => x.id === Number(v)); if (!s) break; if (fireArm === s.id) { fireArm = 0; g.fire(s); view.selected = null; lastSig = ''; } else { fireArm = s.id; fireArmT = performance.now(); } infoSig = ''; break; }
+    case 'hintx': hintDismissed = $('hint-t').textContent ?? ''; updateHint(); break;
     case 'save': saveGame(true); break;
     case 'load': loadGame(); break;
     case 'continue': loadGame(); break;
@@ -473,7 +505,7 @@ function frame(now: number) {
     uiT = 0.12;
     if (fireArm && performance.now() - fireArmT > 3500) { fireArm = 0; infoSig = ''; }
     if (started && performance.now() - lastSave > 20000) { lastSave = performance.now(); saveGame(false); }
-    try { hud(); refreshToolbar(); renderSide(); renderInfo(); live(); } catch (e) { fail('화면', e); lastSig = ''; infoSig = ''; }
+    try { hud(); updateHint(); refreshToolbar(); renderSide(); renderInfo(); live(); } catch (e) { fail('화면', e); lastSig = ''; infoSig = ''; }
   }
 }
 buildTabs(); renderSide(); refreshToolbar(); hud();
