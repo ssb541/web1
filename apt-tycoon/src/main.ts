@@ -263,6 +263,7 @@ function renderSide() {
 
 // ───────── 정보 패널 ─────────
 let infoSig = '';
+let fireArm = 0, fireArmT = 0;
 function moodEmoji(v: number) { return v >= 80 ? '😄' : v >= 60 ? '🙂' : v >= 40 ? '😐' : v >= 20 ? '😠' : '🤬'; }
 const KIND: Record<string, string> = { adult: '직장인', mom: '주부', kid: '어린이', elder: '어르신' };
 function renderInfo() {
@@ -299,11 +300,11 @@ function renderInfo() {
   } else if (sel.kind === 'staff') {
     const s = g.staff.find(x => x.id === sel.id);
     if (!s) { view.selected = null; return; }
-    sig = `s${s.id}|${!!s.post}|${view.placeStaff === s}`;
+    sig = `s${s.id}|${!!s.post}|${view.placeStaff === s}|${fireArm === s.id}`;
     if (sig !== infoSig) {
       html = `<div class="sec">${roleIcon(s.role)} ${esc(s.name)} <small>${ROLES[s.role].name}</small></div><div class="evd">월급 ${ROLES[s.role].salary}만원 · <span data-live="st-${s.id}"></span></div>
         <div class="evd">${s.post ? '📍 담당 구역이 지정되어 있어요 (노란 점선 반경 ' + POST_R + '칸)' : '자유 근무 중 (자동으로 일감을 찾아요)'}</div>
-        <div class="evb"><button class="${view.placeStaff === s ? 'on' : ''}" data-act="placestaff" data-v="${s.id}">📍 지도에서 위치 지정</button>${s.post ? `<button data-act="clearpost" data-v="${s.id}">구역 해제</button>` : ''}<button class="bad" data-act="fire" data-v="${s.id}">해고</button></div>
+        <div class="evb"><button class="${view.placeStaff === s ? 'on' : ''}" data-act="placestaff" data-v="${s.id}">📍 지도에서 위치 지정</button>${s.post ? `<button data-act="clearpost" data-v="${s.id}">구역 해제</button>` : ''}<button class="bad" data-act="fire" data-v="${s.id}">${fireArm === s.id ? '⚠ 정말 해고? 한 번 더 클릭' : '해고'}</button></div>
         <div class="hint">지도에서 직원을 직접 끌어다(드래그) 놓아도 돼요.</div>`;
     }
   } else if (sel.kind === 'event') {
@@ -376,7 +377,10 @@ document.addEventListener('click', e => {
     case 'evout': { const ev = g.events.find(x => x.id === Number(v)); if (ev) g.outsource(ev); lastSig = ''; break; }
     case 'upgrade': { const b = g.bById(Number(v)); if (b) g.upgrade(b); infoSig = ''; break; }
     case 'demo': { const b = g.bById(Number(v)); if (b) { g.demolish(b); view.selected = null; } break; }
-    case 'fire': { const s = g.staff.find(x => x.id === Number(v)); if (s && confirm(`${s.name}님을 해고할까요?`)) { g.fire(s); view.selected = null; lastSig = ''; } break; }
+    case 'fire': { const s = g.staff.find(x => x.id === Number(v)); if (!s) break; if (fireArm === s.id) { fireArm = 0; g.fire(s); view.selected = null; lastSig = ''; } else { fireArm = s.id; fireArmT = performance.now(); } infoSig = ''; break; }
+    case 'save': saveGame(true); break;
+    case 'load': loadGame(); break;
+    case 'continue': loadGame(); break;
     case 'clearpost': { const s = g.staff.find(x => x.id === Number(v)); if (s) { g.clearPost(s); infoSig = ''; lastSig = ''; } break; }
     case 'placestaff': { const s = g.staff.find(x => x.id === Number(v)); if (s) { view.placeStaff = view.placeStaff === s ? null : s; view.tool = null; refreshToolbar(); infoSig = ''; if (view.placeStaff) toast('지도에서 배치할 위치를 클릭하세요', 'info'); } break; }
     case 'start': startGame(); break;
@@ -407,13 +411,31 @@ function showHelp() {
   $('modal').innerHTML = `<div class="box panel"><h1>🏢 단지 타이쿤 도움말</h1>${HELP}<button class="big good" data-act="close">닫기</button></div>`;
 }
 function showTitle() {
-  $('modal').innerHTML = `<div class="box panel"><h1>🏢 단지 타이쿤</h1><p>신축·노후 아파트 단지의 <b>관리소장</b>이 되어 시설을 가꾸고, 직원을 고용하고, 민원을 해결해 <b>'명품 5성급 아파트'</b>를 만들어 보세요.</p>${HELP}<button class="big good" data-act="start">▶ 게임 시작</button></div>`;
+  $('modal').innerHTML = `<div class="box panel"><h1>🏢 단지 타이쿤</h1><p>신축·노후 아파트 단지의 <b>관리소장</b>이 되어 시설을 가꾸고, 직원을 고용하고, 민원을 해결해 <b>'명품 5성급 아파트'</b>를 만들어 보세요.</p>${HELP}<button class="big good" data-act="start">▶ 새 게임 시작</button> ${hasSave() ? '<button class="big warn" data-act="continue">📂 이어하기</button>' : ''}</div>`;
 }
 function endModal() {
   const won = g.state === 'won';
   $('modal').innerHTML = `<div class="box panel"><h1>${won ? '🏆 명품 5성 단지 달성!' : '📄 해임 통보'}</h1><p>${esc(g.endReason)}</p>
   <h2>📊 근무 기록</h2><ul><li>근속 ${g.day}일 (${g.year}년 ${g.month}월)</li><li>직책: ${RANKS[g.rank].title} · 등급 ${'★'.repeat(g.stars)}</li><li>입주 ${g.households()}세대 · 만족도 ${Math.round(g.sat)}%</li><li>해결한 민원 ${g.stats.resolved}건 (외주 ${g.stats.outsourced}) · 기한 초과 ${g.stats.failed}건</li><li>최종 자금 ${fmt(g.funds)}만원</li></ul>
   <button class="big good" data-act="restart">🔄 다시 시작</button></div>`;
+}
+const SAVE_KEY = 'apt-tycoon-save-v1';
+function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; } }
+function saveGame(manual: boolean) {
+  if (g.state !== 'play') return;
+  try { localStorage.setItem(SAVE_KEY, g.serialize()); if (manual) toast('💾 저장했어요', 'good'); }
+  catch { if (manual) toast('이 환경에서는 저장할 수 없어요', 'bad'); }
+}
+function loadGame() {
+  let raw: string | null = null;
+  try { raw = localStorage.getItem(SAVE_KEY); } catch { /* ignore */ }
+  if (!raw) { toast('저장된 게임이 없어요', 'warn'); return; }
+  const ng = new Game();
+  if (!ng.loadSave(raw)) { toast('저장 데이터를 불러오지 못했어요', 'bad'); return; }
+  g = ng; bindGame(); view.selected = null; view.tool = null; view.carrying = null; view.placeStaff = null;
+  lastSig = ''; infoSig = ''; endShown = false; refreshToolbar();
+  if (!started) startGame(); else { $('modal').innerHTML = ''; g.speed = 1; }
+  g.speed = 1; toast('📂 저장한 게임을 불러왔어요', 'good');
 }
 function startGame() { started = true; $('modal').innerHTML = ''; g.speed = 1; buildTabs(); renderSide(); }
 function restart() {
@@ -424,7 +446,7 @@ function restart() {
 
 // ───────── 메인 루프 ─────────
 let last = performance.now(), uiT = 0, endShown = false;
-let errShown = 0;
+let errShown = 0, lastSave = performance.now();
 function fail(where: string, e: unknown) {
   console.error(where, e);
   if (errShown++ < 3) toast(`⚠️ 오류(${where}): ${(e as Error)?.message ?? e}`, 'bad');
@@ -449,6 +471,8 @@ function frame(now: number) {
   uiT -= dt;
   if (uiT <= 0) {
     uiT = 0.12;
+    if (fireArm && performance.now() - fireArmT > 3500) { fireArm = 0; infoSig = ''; }
+    if (started && performance.now() - lastSave > 20000) { lastSave = performance.now(); saveGame(false); }
     try { hud(); refreshToolbar(); renderSide(); renderInfo(); live(); } catch (e) { fail('화면', e); lastSig = ''; infoSig = ''; }
   }
 }

@@ -200,6 +200,33 @@ export class Game {
     this.updateSat();
   }
 
+  // ───────── 저장/불러오기 ─────────
+  serialize(): string {
+    const d = {
+      v: 1, funds: this.funds, day: this.day, dayFrac: this.dayFrac, complaints: this.complaints, sat: this.sat, shock: this.shock,
+      rank: this.rank, hold: this.hold, history: this.history, lowSatDays: this.lowSatDays, patrol: this.patrol, nextId: this.nextId, stats: this.stats,
+      buildings: this.buildings.map(b => ({ ...b, fixer: 0 })),
+      residents: this.residents.map(r => ({ ...r, path: [] })),
+      staff: this.staff.map(s => ({ ...s, path: [], task: null, state: 'idle', carried: false, workT: 0, think: 0.2, idleT: 0 })),
+      events: this.events.map(e => ({ ...e, worker: 0 })),
+      litter: this.litter.map(l => ({ ...l, claim: 0 })),
+    };
+    return JSON.stringify(d);
+  }
+  loadSave(json: string): boolean {
+    try {
+      const d = JSON.parse(json);
+      if (!d || d.v !== 1 || !Array.isArray(d.buildings) || !d.buildings.some((b: Building) => b.type === 'office')) return false;
+      this.buildings = d.buildings; this.grid.fill(0);
+      for (const b of this.buildings) for (let j = b.y; j < b.y + b.h; j++) for (let i = b.x; i < b.x + b.w; i++) this.grid[j * N + i] = b.id;
+      this.residents = d.residents; this.staff = d.staff; this.events = d.events; this.litter = d.litter;
+      for (const k of ['funds', 'day', 'dayFrac', 'complaints', 'sat', 'shock', 'rank', 'hold', 'history', 'lowSatDays', 'patrol', 'nextId', 'stats'] as const) (this as any)[k] = d[k];
+      this.state = 'play'; this.endReason = ''; this.speed = 1;
+      this.computeScores(); this.updateSat();
+      return true;
+    } catch { return false; }
+  }
+
   // ───────── 시간/날짜 ─────────
   get monthIdx() { return Math.floor(this.day / MONTH_DAYS); }
   get dayOfMonth() { return (this.day % MONTH_DAYS) + 1; }
