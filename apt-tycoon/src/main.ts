@@ -189,7 +189,9 @@ window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase(); keys.add(k);
   if (!started) return;
   if (k === ' ') { e.preventDefault(); setSpeed(g.speed === 0 ? 1 : 0); }
-  else if (k === '1' || k === '2' || k === '3') setSpeed(Number(k));
+  else if (k >= '1' && k <= '7') setSpeed(SPEEDS[Number(k) - 1]);
+  else if (k === ']' || k === '.') setSpeed(SPEEDS[Math.min(SPEEDS.length - 1, Math.max(0, SPEEDS.indexOf(g.speed)) + 1)]);
+  else if (k === '[' || k === ',') setSpeed(SPEEDS[Math.max(0, SPEEDS.indexOf(g.speed) - 1)]);
   else if (k === 'escape') { setTool(null); view.moveB = null; view.selected = null; view.placeStaff = null; }
   else if (k === 'r') { view.rot = !view.rot; updateGhost(); }
   else if (k === '+' || k === '=') setZoom(view.S + 1);
@@ -197,6 +199,7 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 
+const SPEEDS = [1, 2, 4, 8, 16, 32, 64];
 function setSpeed(v: number) { if (g.state === 'play') g.speed = v; }
 
 // ───────── 사이드 패널 ─────────
@@ -442,7 +445,7 @@ const HELP = `
 <li><b>건설</b>: 아래 건설 메뉴 선택 → 지도 클릭. <kbd>R</kbd> 회전, 우클릭/<kbd>Esc</kbd> 취소. 건물을 클릭하면 업그레이드/철거</li>
 <li><b>입주민 클릭</b>: 만족도와 불만 이유 확인</li>
 <li><b>직원 배치</b>: 직원을 <b>드래그해서 집어 올려</b> 원하는 곳에 놓기 → 그 주변 반경 ${POST_R}칸이 담당 구역. 민원 마커 위에 놓으면 즉시 투입!</li>
-<li><b>시간</b>: <kbd>Space</kbd> 일시정지, <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 배속</li>
+<li><b>시간</b>: <kbd>Space</kbd> 일시정지, <kbd>1</kbd>~<kbd>7</kbd> 배속(1x~64x), <kbd>[</kbd><kbd>]</kbd> 한 단계씩</li>
 </ul>
 <h2>🎯 목표</h2>
 <ul>

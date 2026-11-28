@@ -31,7 +31,7 @@ button.good{background:#2f7f4a} button.bad{background:#a53b30} button.warn{backg
 .pos{color:var(--good)} .neg{color:var(--bad)}
 .spacer{flex:1}
 #speed{display:flex;gap:3px}
-#speed button{padding:3px 8px;min-width:34px;font-weight:700}
+#speed button{padding:3px 5px;min-width:30px;font-weight:700;font-size:12px}
 #stars{color:var(--gold);letter-spacing:1px}
 #toolbar{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;display:flex;gap:5px;padding:6px;max-width:calc(100vw - 12px);overflow-x:auto;z-index:5;scrollbar-width:none}
 #toolbar::-webkit-scrollbar{display:none}
@@ -114,9 +114,13 @@ kbd{background:#0c141c;border:1px solid #000;border-radius:2px;padding:0 4px;fon
   <div class="spacer"></div>
   <div id="speed">
     <button data-act="speed" data-v="0" title="일시정지 (Space)">⏸</button>
-    <button data-act="speed" data-v="1" title="1배속 (1)">▶</button>
-    <button data-act="speed" data-v="2" title="2배속 (2)">▶▶</button>
-    <button data-act="speed" data-v="3" title="3배속 (3)">▶▶▶</button>
+    <button data-act="speed" data-v="1" title="1배속 (1)">1x</button>
+    <button data-act="speed" data-v="2" title="2배속 (2)">2x</button>
+    <button data-act="speed" data-v="4" title="4배속 (3)">4x</button>
+    <button data-act="speed" data-v="8" title="8배속 (4)">8x</button>
+    <button data-act="speed" data-v="16" title="16배속 (5)">16x</button>
+    <button data-act="speed" data-v="32" title="32배속 (6)">32x</button>
+    <button data-act="speed" data-v="64" title="64배속 (7)">64x</button>
   </div>
   <button data-act="zoom" data-v="-1" title="축소 (-)">➖</button>
   <button data-act="zoom" data-v="1" title="확대 (+)">➕</button>
